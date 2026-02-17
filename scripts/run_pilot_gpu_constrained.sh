@@ -10,12 +10,13 @@ SEED="42"
 MAX_RUNTIME_SEC="${MAX_RUNTIME_SEC:-1800}" # 30 min hard limit
 ENDPOINTS=("predicted_mask" "mask_free")
 ALLOW_NON_PILOT_SUBSET="${ALLOW_NON_PILOT_SUBSET:-0}"
+ALLOW_NON_BASELINE_EXPERIMENT="${ALLOW_NON_BASELINE_EXPERIMENT:-0}"
 REGISTRY_PATH="${ROOT_DIR}/reports_v2/run_registry.csv"
 LOG_DIR="${ROOT_DIR}/logs_v2"
 mkdir -p "${LOG_DIR}"
 
-if [[ "${EXPERIMENT}" != "jsrt_baseline" ]]; then
-  echo "[ERROR] Constrained pilot allows experiment=jsrt_baseline only."
+if [[ "${EXPERIMENT}" != "jsrt_baseline" && "${ALLOW_NON_BASELINE_EXPERIMENT}" != "1" ]]; then
+  echo "[ERROR] Constrained pilot allows experiment=jsrt_baseline only (set ALLOW_NON_BASELINE_EXPERIMENT=1 to override)."
   exit 2
 fi
 if [[ "${SUBSET}" != "pilot5" && "${ALLOW_NON_PILOT_SUBSET}" != "1" ]]; then
@@ -27,10 +28,37 @@ fi
 
 CONFIG_HASH="$(sha256sum configs/protocol_lock_v1.yaml | awk '{print $1}')"
 COMMIT_HASH="$(git rev-parse --short=12 HEAD 2>/dev/null || echo "nogit")"
+mapfile -t DATASETS_IN_SCOPE < <(
+  python - <<PY
+import yaml
+
+experiment = "${EXPERIMENT}"
+with open("configs/experiments.yaml", "r", encoding="utf-8") as fh:
+    cfg = yaml.safe_load(fh)
+exp = cfg["experiments"][experiment]
+seen = set()
+for name in [exp["train_dataset"], *exp.get("test_datasets", [])]:
+    if name not in seen:
+        seen.add(name)
+        print(name)
+PY
+)
+if [[ "${#DATASETS_IN_SCOPE[@]}" -eq 0 ]]; then
+  echo "[ERROR] Failed to resolve datasets for experiment=${EXPERIMENT}"
+  exit 2
+fi
+for dataset in "${DATASETS_IN_SCOPE[@]}"; do
+  if [[ ! -f "data/interim/${dataset}/${SUBSET}/metadata.parquet" ]]; then
+    echo "[ERROR] Missing metadata: data/interim/${dataset}/${SUBSET}/metadata.parquet"
+    exit 2
+  fi
+done
+EXPERIMENT_TAG="$(printf '%s' "${EXPERIMENT}" | sed -E 's/[^A-Za-z0-9]+/_/g')"
 INPUT_DATA_HASH="$(
   {
-    find "data/interim/jsrt/${SUBSET}" -maxdepth 1 -type f \( -name '*.npz' -o -name 'metadata.parquet' \) \
-      | LC_ALL=C sort | xargs -r sha256sum
+    for dataset in "${DATASETS_IN_SCOPE[@]}"; do
+      find "data/interim/${dataset}/${SUBSET}" -maxdepth 1 -type f \( -name '*.npz' -o -name 'metadata.parquet' \)
+    done | LC_ALL=C sort | xargs -r sha256sum
   } | sha256sum | awk '{print $1}'
 )"
 
@@ -124,7 +152,7 @@ run_endpoint() {
 
   local ts run_id log_file start_utc
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
-  run_id="gpu_pilot_jsrt_${SUBSET}_${endpoint}_seed${SEED}_${ts}"
+  run_id="gpu_pilot_${EXPERIMENT_TAG}_${SUBSET}_${endpoint}_seed${SEED}_${ts}"
   log_file="${LOG_DIR}/${run_id}.log"
   start_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
