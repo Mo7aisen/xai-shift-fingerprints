@@ -17,7 +17,7 @@ AUDIT_DIR="${PROJECT_ROOT}/reports_v2/audits"
 SEED="${XFP_SEED:-42}"
 EXPERIMENT="${XFP_EXPERIMENT:-jsrt_baseline}"
 SUBSET="${XFP_SUBSET:-pilot5}"
-RUN_ID="slurm_pilot_seed${SEED}_jsrt_${SUBSET}_${SLURM_JOB_ID:-nojob}"
+RUN_ID="slurm_${EXPERIMENT}_seed${SEED}_${SUBSET}_${SLURM_JOB_ID:-nojob}"
 ENDPOINT_DESC="predicted_mask+mask_free"
 
 mkdir -p "${AUDIT_DIR}"
@@ -123,14 +123,41 @@ fi
 # shellcheck disable=SC1090
 source "${ENV_ACTIVATE}"
 
-if [[ ! -f "data/interim/jsrt/${SUBSET}/metadata.parquet" ]]; then
-  echo "[ERROR] Missing subset metadata: data/interim/jsrt/${SUBSET}/metadata.parquet"
+mapfile -t DATASETS_IN_SCOPE < <(
+  python - <<PY
+import yaml
+
+experiment = "${EXPERIMENT}"
+with open("configs/experiments.yaml", "r", encoding="utf-8") as fh:
+    cfg = yaml.safe_load(fh)
+exp = cfg["experiments"][experiment]
+seen = set()
+for name in [exp["train_dataset"], *exp.get("test_datasets", [])]:
+    if name not in seen:
+        seen.add(name)
+        print(name)
+PY
+)
+if [[ "${#DATASETS_IN_SCOPE[@]}" -eq 0 ]]; then
+  echo "[ERROR] Failed to resolve datasets for experiment=${EXPERIMENT}"
   exit 1
 fi
+for dataset in "${DATASETS_IN_SCOPE[@]}"; do
+  if [[ ! -f "data/interim/${dataset}/${SUBSET}/metadata.parquet" ]]; then
+    echo "[ERROR] Missing metadata: data/interim/${dataset}/${SUBSET}/metadata.parquet"
+    exit 1
+  fi
+done
 
 COMMIT_HASH="$(git rev-parse --short=12 HEAD 2>/dev/null || echo 'nogit')"
 CONFIG_HASH="$(sha256sum configs/protocol_lock_v1.yaml | awk '{print $1}')"
-INPUT_DATA_HASH="$({ find "data/interim/jsrt/${SUBSET}" -maxdepth 1 -type f \( -name '*.npz' -o -name 'metadata.parquet' \) | LC_ALL=C sort | xargs -r sha256sum; } | sha256sum | awk '{print $1}')"
+INPUT_DATA_HASH="$(
+  {
+    for dataset in "${DATASETS_IN_SCOPE[@]}"; do
+      find "data/interim/${dataset}/${SUBSET}" -maxdepth 1 -type f \( -name '*.npz' -o -name 'metadata.parquet' \)
+    done | LC_ALL=C sort | xargs -r sha256sum
+  } | sha256sum | awk '{print $1}'
+)"
 
 START_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 FINAL_STATUS="failed"
