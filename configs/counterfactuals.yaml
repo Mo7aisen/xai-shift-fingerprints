@@ -1,0 +1,27 @@
+defaults:
+  output_root: data/counterfactuals
+  subset: pilot5
+  perturbation:
+    name: dilate
+    params:
+      radius: 4
+
+experiments:
+  jsrt_dilate:
+    dataset_key: jsrt
+    subset: pilot5
+    perturbation:
+      name: dilate
+      params:
+        radius: 6
+    limit: 10
+
+  jsrt_gaussian:
+    dataset_key: jsrt
+    subset: pilot5
+    perturbation:
+      name: gaussian_nodule
+      params:
+        radius: 10
+        intensity: 0.3
+    limit: 5

@@ -1,0 +1,94 @@
+# Experiment manifests specify training/testing cohorts and fingerprint options.
+defaults:
+  attribution_methods:
+    - integrated_gradients
+    - grad_cam
+  fingerprint_metrics:
+    - border_intensity_hist
+    - coverage_curve
+    - component_graph
+  shift_metrics:
+    - emd
+    - kl_divergence
+    - graph_edit_distance
+
+experiments:
+  # BASELINE EXPERIMENTS (In-distribution)
+  jsrt_baseline:
+    train_dataset: jsrt
+    test_datasets:
+      - jsrt
+    subset: full
+    notes: "Baseline A: JSRT model on JSRT data (in-distribution)"
+
+  montgomery_baseline:
+    train_dataset: montgomery
+    test_datasets:
+      - montgomery
+    subset: full
+    notes: "Baseline B: Montgomery model on Montgomery data (in-distribution)"
+
+  # CROSS-DATASET EXPERIMENTS (Out-of-distribution shift detection)
+  jsrt_to_montgomery:
+    train_dataset: jsrt
+    test_datasets:
+      - montgomery
+    subset: full
+    notes: "Shift detection: JSRT model tested on Montgomery data (out-of-distribution)"
+
+  montgomery_to_jsrt:
+    train_dataset: montgomery
+    test_datasets:
+      - jsrt
+    subset: full
+    notes: "Shift detection (reverse): Montgomery model tested on JSRT data (out-of-distribution)"
+
+  shenzhen_baseline:
+    train_dataset: shenzhen
+    test_datasets:
+      - shenzhen
+    subset: full
+    notes: "Baseline C: Shenzhen cohort with dedicated Shenzhen-trained model (in-distribution)"
+
+  jsrt_to_shenzhen:
+    train_dataset: jsrt
+    test_datasets:
+      - shenzhen
+    subset: full
+    notes: "Shift detection: JSRT model tested on Shenzhen data (out-of-distribution)"
+
+  montgomery_to_shenzhen:
+    train_dataset: montgomery
+    test_datasets:
+      - shenzhen
+    subset: full
+    notes: "Shift detection: Montgomery model tested on Shenzhen data (appendix)"
+
+  # NIH CHESTXRAY14 (External validation roadmap)
+  nih_baseline:
+    train_dataset: nih_chestxray14
+    test_datasets:
+      - nih_chestxray14
+    subset: full
+    notes: "Baseline D: NIH ChestXray14 cohort (external validation; requires NIH masks)."
+
+  jsrt_to_nih:
+    train_dataset: jsrt
+    test_datasets:
+      - nih_chestxray14
+    subset: full
+    notes: "External shift detection: JSRT model tested on NIH ChestXray14 (pending DUA)."
+
+  montgomery_to_nih:
+    train_dataset: montgomery
+    test_datasets:
+      - nih_chestxray14
+    subset: full
+    notes: "External shift detection: Montgomery model tested on NIH ChestXray14 (pending DUA)."
+
+  shenzhen_to_nih:
+    train_dataset: shenzhen
+    test_datasets:
+      - nih_chestxray14
+    subset: full
+    notes: "External shift detection: Shenzhen model tested on NIH ChestXray14 (pending DUA)."
