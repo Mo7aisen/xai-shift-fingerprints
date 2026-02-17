@@ -8,7 +8,7 @@ This script computes the pending statistical criteria for Gate-3:
 - Post-hoc power for ID vs OOD score separation
 
 Expected artifact layout:
-  <artifacts_root>/seed<SEED>/<endpoint>/<experiment>/{jsrt.parquet,montgomery.parquet}
+  <artifacts_root>/seed<SEED>/<endpoint>/<experiment>/{<id_dataset>.parquet,<ood_dataset>.parquet}
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ from scipy.stats import norm, rankdata, t
 DEFAULT_SEEDS = [42, 43, 44, 45, 46]
 DEFAULT_ENDPOINTS = ["predicted_mask", "mask_free"]
 DEFAULT_EXPERIMENT = "jsrt_to_montgomery"
-ID_DATASET = "jsrt"
-OOD_DATASET = "montgomery"
+DEFAULT_ID_DATASET = "jsrt"
+DEFAULT_OOD_DATASET = "montgomery"
 N_BOOT = 1000
 TOPK = 10
 
@@ -47,6 +47,16 @@ def parse_args() -> argparse.Namespace:
         "--experiment",
         default=DEFAULT_EXPERIMENT,
         help="Experiment key used during full-seed run.",
+    )
+    parser.add_argument(
+        "--id-dataset",
+        default=DEFAULT_ID_DATASET,
+        help="In-distribution dataset key used as reference.",
+    )
+    parser.add_argument(
+        "--ood-dataset",
+        default=DEFAULT_OOD_DATASET,
+        help="Out-of-distribution dataset key used as target.",
     )
     parser.add_argument(
         "--seeds",
@@ -125,6 +135,43 @@ def _auc_with_ci(
     return point, float(low), float(high)
 
 
+def _aupr(y: np.ndarray, score: np.ndarray) -> float:
+    y = y.astype(int)
+    n_pos = int(np.sum(y == 1))
+    if n_pos == 0:
+        return float("nan")
+    order = np.argsort(-score)
+    y_sorted = y[order]
+    tp = np.cumsum(y_sorted == 1)
+    fp = np.cumsum(y_sorted == 0)
+    precision = tp / np.maximum(tp + fp, 1)
+    recall = tp / n_pos
+    ap = 0.0
+    prev_recall = 0.0
+    for p, r, yi in zip(precision, recall, y_sorted):
+        if yi == 1:
+            ap += float(p) * float(r - prev_recall)
+            prev_recall = float(r)
+    return float(ap)
+
+
+def _aupr_with_ci(
+    y: np.ndarray,
+    score: np.ndarray,
+    *,
+    n_boot: int,
+    seed: int,
+) -> tuple[float, float, float]:
+    rng = np.random.default_rng(seed)
+    point = _aupr(y, score)
+    boots = np.empty(n_boot, dtype=float)
+    for i in range(n_boot):
+        idx = _stratified_boot_indices(y, rng)
+        boots[i] = _aupr(y[idx], score[idx])
+    low, high = np.quantile(boots, [0.025, 0.975])
+    return point, float(low), float(high)
+
+
 def _roc_auc(y: np.ndarray, score: np.ndarray) -> float:
     y = y.astype(int)
     n_pos = int(np.sum(y == 1))
@@ -178,6 +225,16 @@ def _ece(y: np.ndarray, score: np.ndarray, n_bins: int = 10) -> float:
         w = float(np.mean(m))
         ece += w * abs(acc - conf)
     return float(ece)
+
+
+def _brier(y: np.ndarray, score: np.ndarray) -> float:
+    smin = float(np.min(score))
+    smax = float(np.max(score))
+    if smax <= smin:
+        p = np.full_like(score, 0.5, dtype=float)
+    else:
+        p = (score - smin) / (smax - smin)
+    return float(np.mean((p - y) ** 2))
 
 
 def _cohen_d(x0: np.ndarray, x1: np.ndarray) -> float:
@@ -285,8 +342,8 @@ def main() -> None:
     for endpoint in args.endpoints:
         for seed in args.seeds:
             base = args.artifacts_root / f"seed{seed}" / endpoint / args.experiment
-            id_path = base / f"{ID_DATASET}.parquet"
-            ood_path = base / f"{OOD_DATASET}.parquet"
+            id_path = base / f"{args.id_dataset}.parquet"
+            ood_path = base / f"{args.ood_dataset}.parquet"
             if not id_path.exists() or not ood_path.exists():
                 raise FileNotFoundError(
                     f"Missing seed artifact for endpoint={endpoint}, seed={seed}: "
@@ -306,9 +363,17 @@ def main() -> None:
             y = np.concatenate([np.zeros(len(score_id), dtype=int), np.ones(len(score_ood), dtype=int)])
             score = np.concatenate([score_id, score_ood])
             auc, ci_low, ci_high = _auc_with_ci(y, score, n_boot=args.n_boot, seed=rng_seed + seed)
+            aupr, aupr_ci_low, aupr_ci_high = _aupr_with_ci(
+                y,
+                score,
+                n_boot=args.n_boot,
+                seed=rng_seed + 10000 + seed,
+            )
             ci_width = ci_high - ci_low
+            aupr_ci_width = aupr_ci_high - aupr_ci_low
             fpr95 = _fpr95(y, score)
             ece = _ece(y, score)
+            brier = _brier(y, score)
             power = _power_from_effect_size(d, len(score_id), len(score_ood))
 
             per_seed_rows.append(
@@ -321,8 +386,13 @@ def main() -> None:
                     "auroc_ci_low": float(ci_low),
                     "auroc_ci_high": float(ci_high),
                     "auroc_ci_width": float(ci_width),
+                    "aupr": float(aupr),
+                    "aupr_ci_low": float(aupr_ci_low),
+                    "aupr_ci_high": float(aupr_ci_high),
+                    "aupr_ci_width": float(aupr_ci_width),
                     "fpr95": float(fpr95),
                     "ece": float(ece),
+                    "brier": float(brier),
                     "effect_size_d": float(d),
                     "power": float(power),
                     "top_features": ",".join(top_features),
@@ -338,9 +408,14 @@ def main() -> None:
     for endpoint in args.endpoints:
         sub = per_seed_df[per_seed_df["endpoint"] == endpoint].copy()
         auc_values = sub["auroc"].astype(float).tolist()
+        aupr_values = sub["aupr"].astype(float).tolist()
         seed_ci_w = _seed_ci_width(auc_values)
         mean_boot_ci_w = float(sub["auroc_ci_width"].mean())
+        mean_aupr_boot_ci_w = float(sub["aupr_ci_width"].mean())
         mean_power = float(sub["power"].mean())
+        mean_fpr95 = float(sub["fpr95"].mean())
+        mean_ece = float(sub["ece"].mean())
+        mean_brier = float(sub["brier"].mean())
         mean_j, min_j, n_pairs = _pairwise_jaccard(top_features_per_endpoint[endpoint].values())
 
         # Gate-3 criteria
@@ -355,6 +430,12 @@ def main() -> None:
             "auroc_std": float(np.std(auc_values, ddof=1)) if len(auc_values) > 1 else float("nan"),
             "auroc_seed_ci_width": float(seed_ci_w),
             "auroc_bootstrap_ci_width_mean": float(mean_boot_ci_w),
+            "aupr_mean": float(np.mean(aupr_values)),
+            "aupr_std": float(np.std(aupr_values, ddof=1)) if len(aupr_values) > 1 else float("nan"),
+            "aupr_bootstrap_ci_width_mean": float(mean_aupr_boot_ci_w),
+            "fpr95_mean": float(mean_fpr95),
+            "ece_mean": float(mean_ece),
+            "brier_mean": float(mean_brier),
             "power_mean": float(mean_power),
             "jaccard_mean": float(mean_j),
             "jaccard_min": float(min_j),
@@ -369,6 +450,8 @@ def main() -> None:
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "artifacts_root": str(args.artifacts_root),
         "experiment": args.experiment,
+        "id_dataset": args.id_dataset,
+        "ood_dataset": args.ood_dataset,
         "seeds": args.seeds,
         "endpoints": args.endpoints,
         "criteria": {
@@ -388,6 +471,8 @@ def main() -> None:
     lines.append("")
     lines.append(f"- Generated UTC: `{summary['generated_utc']}`")
     lines.append(f"- Experiment: `{args.experiment}`")
+    lines.append(f"- ID dataset: `{args.id_dataset}`")
+    lines.append(f"- OOD dataset: `{args.ood_dataset}`")
     lines.append(f"- Seeds: `{args.seeds}`")
     lines.append(f"- Endpoints: `{args.endpoints}`")
     lines.append(f"- Artifacts root: `{args.artifacts_root}`")
@@ -400,16 +485,21 @@ def main() -> None:
     lines.append("")
     lines.append("## Endpoint Summary")
     lines.append("")
-    lines.append("| Endpoint | AUROC mean | Seed-CI width | Mean boot CI width | Jaccard mean | Power mean | AUROC CI | Jaccard | Power | PASS |")
-    lines.append("|---|---:|---:|---:|---:|---:|---|---|---|---|")
+    lines.append("| Endpoint | AUROC mean | AUPR mean | Seed-CI width | Mean AUROC boot CI width | Mean AUPR boot CI width | FPR95 mean | ECE mean | Brier mean | Jaccard mean | Power mean | AUROC CI | Jaccard | Power | PASS |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|")
     for endpoint in args.endpoints:
         e = endpoint_summary[endpoint]
         lines.append(
             "| "
             f"{endpoint} | "
             f"{e['auroc_mean']:.4f} | "
+            f"{e['aupr_mean']:.4f} | "
             f"{e['auroc_seed_ci_width']:.4f} | "
             f"{e['auroc_bootstrap_ci_width_mean']:.4f} | "
+            f"{e['aupr_bootstrap_ci_width_mean']:.4f} | "
+            f"{e['fpr95_mean']:.4f} | "
+            f"{e['ece_mean']:.4f} | "
+            f"{e['brier_mean']:.4f} | "
             f"{e['jaccard_mean']:.4f} | "
             f"{e['power_mean']:.4f} | "
             f"{'PASS' if e['pass_auroc_ci'] else 'FAIL'} | "

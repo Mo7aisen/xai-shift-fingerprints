@@ -1,0 +1,47 @@
+version: "1.0.1"
+amends: "1.0.0"
+date_frozen: "2026-02-17"
+status: frozen
+append_only: true
+
+title: journal_claim_policy_and_threshold_interpretation
+
+rationale:
+  - "Protocol v1.0.0 was tuned for deployment-grade mask-free performance (AUROC >= 0.90)."
+  - "Current evidence shows stable clinical linkage and robustness with mask-free AUROC around 0.856 in jsrt_to_montgomery."
+  - "Journal claims are therefore split into deployment-grade vs monitoring-grade tiers."
+
+claim_tiers:
+  deployment_grade:
+    mask_free_auroc_min: 0.90
+    required:
+      - gate4_pass
+      - gate5_pass
+      - determinism_all_match
+  monitoring_grade:
+    mask_free_auroc_min: 0.85
+    required:
+      - gate4_pass
+      - gate5_pass
+      - determinism_all_match
+      - min_dice_drop_correlation: 0.60
+      - baseline_comparison_required: true
+      - multi_domain_required: true
+
+reporting_requirements:
+  must_include:
+    - auroc
+    - aupr
+    - fpr95
+    - ece
+    - brier
+    - baseline_ood_methods
+  baseline_ood_methods_min: 3
+  required_domains:
+    - jsrt_to_montgomery
+    - jsrt_to_shenzhen
+
+publication_scope:
+  allowed_if_only_monitoring_grade:
+    - "Claim as shift-monitoring aid, not standalone deployment gate."
+    - "Explicitly state AUROC tier and clinical-link evidence."

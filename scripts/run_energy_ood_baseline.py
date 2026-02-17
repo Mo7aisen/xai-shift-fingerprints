@@ -65,6 +65,12 @@ def parse_args() -> argparse.Namespace:
         default="jsrt,montgomery,shenzhen,nih_chestxray14",
         help="Comma-separated dataset keys.",
     )
+    parser.add_argument(
+        "--in-datasets",
+        type=str,
+        default="jsrt,montgomery",
+        help="Comma-separated in-distribution dataset keys.",
+    )
     parser.add_argument("--subset", type=str, default="full")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=4)
@@ -93,16 +99,17 @@ def main() -> None:
     score_path = args.output_dir / "energy_ood_scores.csv"
     auc_path = args.output_dir / "energy_ood_auc.csv"
 
-    in_dist = {"jsrt", "montgomery"}
+    in_dist = {d.strip() for d in args.in_datasets.split(",") if d.strip()}
     all_labels = []
     entropy_scores = []
     msp_scores = []
-    scores_by_dataset = {ds: {"entropy": [], "msp": []} for ds in datasets}
+    maxlogit_scores = []
+    scores_by_dataset = {ds: {"entropy": [], "msp": [], "maxlogit": []} for ds in datasets}
 
     with score_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(
             fh,
-            fieldnames=["sample_id", "dataset", "entropy_score", "msp_score"],
+            fieldnames=["sample_id", "dataset", "entropy_score", "msp_score", "maxlogit_score"],
         )
         writer.writeheader()
 
@@ -131,35 +138,44 @@ def main() -> None:
                     # MSP proxy
                     msp = torch.maximum(probs, 1 - probs)
                     msp_score = 1.0 - msp.mean(dim=(1, 2, 3))
+                    # MaxLogit proxy for binary logits: lower abs(logit) => more OOD-like.
+                    maxlogit_score = -torch.abs(logits).mean(dim=(1, 2, 3))
 
                     entropy_np = entropy_score.detach().cpu().numpy().tolist()
                     msp_np = msp_score.detach().cpu().numpy().tolist()
+                    maxlogit_np = maxlogit_score.detach().cpu().numpy().tolist()
 
-                    for sample_id, ent, msp_val in zip(sample_ids, entropy_np, msp_np):
+                    for sample_id, ent, msp_val, maxlogit_val in zip(sample_ids, entropy_np, msp_np, maxlogit_np):
                         writer.writerow(
                             {
                                 "sample_id": sample_id,
                                 "dataset": ds,
                                 "entropy_score": ent,
                                 "msp_score": msp_val,
+                                "maxlogit_score": maxlogit_val,
                             }
                         )
 
                     entropy_scores.extend(entropy_np)
                     msp_scores.extend(msp_np)
+                    maxlogit_scores.extend(maxlogit_np)
                     all_labels.extend([label] * len(entropy_np))
                     scores_by_dataset[ds]["entropy"].extend(entropy_np)
                     scores_by_dataset[ds]["msp"].extend(msp_np)
+                    scores_by_dataset[ds]["maxlogit"].extend(maxlogit_np)
 
     # AUC summary
     labels = np.asarray(all_labels, dtype=int)
     entropy_scores = np.asarray(entropy_scores, dtype=float)
     msp_scores = np.asarray(msp_scores, dtype=float)
+    maxlogit_scores = np.asarray(maxlogit_scores, dtype=float)
 
     entropy_auc = roc_auc_score(labels, entropy_scores)
     msp_auc = roc_auc_score(labels, msp_scores)
+    maxlogit_auc = roc_auc_score(labels, maxlogit_scores)
     entropy_ci = _bootstrap_auc(labels, entropy_scores)
     msp_ci = _bootstrap_auc(labels, msp_scores)
+    maxlogit_ci = _bootstrap_auc(labels, maxlogit_scores)
 
     with auc_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(
@@ -185,12 +201,24 @@ def main() -> None:
                 "ci_high": msp_ci[1],
             }
         )
+        writer.writerow(
+            {
+                "scope": "overall",
+                "metric": "maxlogit",
+                "auc": maxlogit_auc,
+                "ci_low": maxlogit_ci[0],
+                "ci_high": maxlogit_ci[1],
+            }
+        )
 
         in_entropy = np.concatenate(
             [np.asarray(scores_by_dataset[ds]["entropy"]) for ds in in_dist if ds in scores_by_dataset]
         )
         in_msp = np.concatenate(
             [np.asarray(scores_by_dataset[ds]["msp"]) for ds in in_dist if ds in scores_by_dataset]
+        )
+        in_maxlogit = np.concatenate(
+            [np.asarray(scores_by_dataset[ds]["maxlogit"]) for ds in in_dist if ds in scores_by_dataset]
         )
 
         for ds in datasets:
@@ -209,7 +237,7 @@ def main() -> None:
             ci_ds = _bootstrap_auc(labels_ds, scores_ds)
             writer.writerow(
                 {
-                    "scope": f"jsrt+montgomery vs {ds}",
+                    "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
                     "metric": "entropy",
                     "auc": auc_ds,
                     "ci_low": ci_ds[0],
@@ -225,8 +253,25 @@ def main() -> None:
             ci_ds = _bootstrap_auc(labels_ds, scores_ds)
             writer.writerow(
                 {
-                    "scope": f"jsrt+montgomery vs {ds}",
+                    "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
                     "metric": "msp",
+                    "auc": auc_ds,
+                    "ci_low": ci_ds[0],
+                    "ci_high": ci_ds[1],
+                }
+            )
+
+            out_maxlogit = np.asarray(scores_by_dataset[ds]["maxlogit"])
+            labels_ds = np.concatenate(
+                [np.zeros(in_maxlogit.size, dtype=int), np.ones(out_maxlogit.size, dtype=int)]
+            )
+            scores_ds = np.concatenate([in_maxlogit, out_maxlogit])
+            auc_ds = roc_auc_score(labels_ds, scores_ds)
+            ci_ds = _bootstrap_auc(labels_ds, scores_ds)
+            writer.writerow(
+                {
+                    "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
+                    "metric": "maxlogit",
                     "auc": auc_ds,
                     "ci_low": ci_ds[0],
                     "ci_high": ci_ds[1],

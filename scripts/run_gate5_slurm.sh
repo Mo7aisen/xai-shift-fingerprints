@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=20G
-#SBATCH --time=04:00:00
+#SBATCH --time=06:00:00
 #SBATCH --output=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/logs/slurm_gate5_%j.out
 #SBATCH --error=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/logs/slurm_gate5_%j.err
 
@@ -20,6 +20,31 @@ SUBSET="${XFP_SUBSET:-full}"
 SEEDS=( ${XFP_SEEDS:-42 43 44 45 46} )
 REF_SEED="${XFP_GATE5_REF_SEED:-42}"
 DET_SEED="${XFP_GATE5_DET_SEED:-42}"
+DATE_TAG="${XFP_DATE_TAG:-2026-02-17}"
+OUTPUT_TAG="${XFP_OUTPUT_TAG:-}"
+
+if [[ -n "${OUTPUT_TAG}" ]]; then
+  SAFE_OUTPUT_TAG="$(echo "${OUTPUT_TAG}" | tr '/: ' '___')"
+  OUT_SEED_CSV="${AUDIT_DIR}/GATE5_CLINICAL_PER_SEED_${SAFE_OUTPUT_TAG}.csv"
+  OUT_CASES_CSV="${AUDIT_DIR}/GATE5_CLINICAL_CASES_${SAFE_OUTPUT_TAG}.csv"
+  OUT_CLINICAL_JSON="${AUDIT_DIR}/GATE5_CLINICAL_SUMMARY_${SAFE_OUTPUT_TAG}.json"
+  OUT_CLINICAL_MD="${AUDIT_DIR}/GATE5_CLINICAL_RELEVANCE_${SAFE_OUTPUT_TAG}.md"
+  OUT_DET_CSV="${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_${SAFE_OUTPUT_TAG}.csv"
+  OUT_DET_JSON="${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_SUMMARY_${SAFE_OUTPUT_TAG}.json"
+  OUT_DET_MD="${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_${SAFE_OUTPUT_TAG}.md"
+  OUT_FINAL_JSON="${AUDIT_DIR}/GATE5_FINAL_SUMMARY_${SAFE_OUTPUT_TAG}.json"
+  OUT_FINAL_MD="${AUDIT_DIR}/GATE5_FINAL_${SAFE_OUTPUT_TAG}.md"
+else
+  OUT_SEED_CSV="${AUDIT_DIR}/GATE5_CLINICAL_PER_SEED.csv"
+  OUT_CASES_CSV="${AUDIT_DIR}/GATE5_CLINICAL_CASES.csv"
+  OUT_CLINICAL_JSON="${AUDIT_DIR}/GATE5_CLINICAL_SUMMARY.json"
+  OUT_CLINICAL_MD="${AUDIT_DIR}/GATE5_CLINICAL_RELEVANCE_${DATE_TAG}.md"
+  OUT_DET_CSV="${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM.csv"
+  OUT_DET_JSON="${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_SUMMARY.json"
+  OUT_DET_MD="${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_${DATE_TAG}.md"
+  OUT_FINAL_JSON="${AUDIT_DIR}/GATE5_FINAL_SUMMARY.json"
+  OUT_FINAL_MD="${AUDIT_DIR}/GATE5_FINAL_${DATE_TAG}.md"
+fi
 
 mkdir -p "${PROJECT_ROOT}/logs" "${AUDIT_DIR}" "${GATE5_ROOT}"
 cd "${PROJECT_ROOT}"
@@ -58,6 +83,7 @@ PY
 
 echo "[GATE5] experiment=${EXPERIMENT} subset=${SUBSET} seeds=${SEEDS[*]}"
 echo "[GATE5] datasets id=${ID_DATASET} ood=${OOD_DATASET}"
+echo "[GATE5] outputs: ${OUT_CLINICAL_JSON} | ${OUT_DET_JSON}"
 
 # Step 1: generate analysis-only upper-bound dice reference (GT masks)
 REF_ROOT="${GATE5_ROOT}/reference_upper_bound/seed${REF_SEED}"
@@ -86,10 +112,10 @@ python scripts/gate5_clinical_relevance.py \
   --seeds "${SEEDS[@]}" \
   --endpoints predicted_mask mask_free \
   --min-corr 0.60 \
-  --out-seed-csv "${AUDIT_DIR}/GATE5_CLINICAL_PER_SEED.csv" \
-  --out-cases-csv "${AUDIT_DIR}/GATE5_CLINICAL_CASES.csv" \
-  --out-json "${AUDIT_DIR}/GATE5_CLINICAL_SUMMARY.json" \
-  --out-md "${AUDIT_DIR}/GATE5_CLINICAL_RELEVANCE_2026-02-17.md"
+  --out-seed-csv "${OUT_SEED_CSV}" \
+  --out-cases-csv "${OUT_CASES_CSV}" \
+  --out-json "${OUT_CLINICAL_JSON}" \
+  --out-md "${OUT_CLINICAL_MD}"
 
 # Step 3: determinism re-audit: same config run twice and compare hashes
 DET_ROOT="${GATE5_ROOT}/determinism"
@@ -114,8 +140,15 @@ python scripts/audit_bitwise_determinism.py \
   --run-b run2 \
   --experiment "${EXPERIMENT}" \
   --endpoints predicted_mask mask_free \
-  --out-csv "${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM.csv" \
-  --out-json "${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_SUMMARY.json" \
-  --out-md "${AUDIT_DIR}/GATE5_BITWISE_DETERMINISM_2026-02-17.md"
+  --out-csv "${OUT_DET_CSV}" \
+  --out-json "${OUT_DET_JSON}" \
+  --out-md "${OUT_DET_MD}"
+
+python scripts/gate5_finalize_decision.py \
+  --clinical-json "${OUT_CLINICAL_JSON}" \
+  --determinism-json "${OUT_DET_JSON}" \
+  --out-json "${OUT_FINAL_JSON}" \
+  --out-md "${OUT_FINAL_MD}"
 
 echo "[DONE] Gate-5 clinical relevance + determinism re-audit complete."
+echo "[DONE] final decision -> ${OUT_FINAL_JSON}"

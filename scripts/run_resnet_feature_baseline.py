@@ -125,6 +125,12 @@ def parse_args() -> argparse.Namespace:
         default="jsrt,montgomery,shenzhen,nih_chestxray14",
         help="Comma-separated dataset keys.",
     )
+    parser.add_argument(
+        "--in-datasets",
+        type=str,
+        default="jsrt,montgomery",
+        help="Comma-separated in-distribution dataset keys.",
+    )
     parser.add_argument("--subset", type=str, default="full")
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=4)
@@ -149,8 +155,8 @@ def main() -> None:
     score_path = args.output_dir / "resnet_ood_scores.csv"
     auc_path = args.output_dir / "resnet_ood_auc.csv"
 
-    # In-distribution: JSRT + Montgomery
-    in_dist = {"jsrt", "montgomery"}
+    # In-distribution set is configurable per experiment.
+    in_dist = {d.strip() for d in args.in_datasets.split(",") if d.strip()}
     in_features = []
 
     for ds in datasets:
@@ -230,7 +236,7 @@ def main() -> None:
             ds_ci_low, ds_ci_high = _bootstrap_auc(ds_labels, ds_scores)
             writer.writerow(
                 {
-                    "scope": f"jsrt+montgomery vs {ds}",
+                    "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
                     "auc": ds_auc,
                     "ci_low": ds_ci_low,
                     "ci_high": ds_ci_high,

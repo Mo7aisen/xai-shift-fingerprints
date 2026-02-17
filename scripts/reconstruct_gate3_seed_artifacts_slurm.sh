@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=20G
-#SBATCH --time=02:30:00
+#SBATCH --time=08:00:00
 #SBATCH --output=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/logs/slurm_gate3_reconstruct_%j.out
 #SBATCH --error=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/logs/slurm_gate3_reconstruct_%j.err
 
@@ -12,14 +12,21 @@ set -euo pipefail
 
 PROJECT_ROOT="/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full"
 ENV_ACTIVATE="/storage/xai_cxr_safety/xai-al-env/bin/activate"
-BATCH_TAG="gate3_official_20260217"
-EXPERIMENT="jsrt_to_montgomery"
-SUBSET="full"
-SEEDS=(42 43 44 45 46)
-ENDPOINTS=(predicted_mask mask_free)
+BATCH_TAG="${XFP_BATCH_TAG:-gate3_official_20260217}"
+EXPERIMENT="${XFP_EXPERIMENT:-jsrt_to_montgomery}"
+SUBSET="${XFP_SUBSET:-full}"
+SEEDS=( ${XFP_SEEDS:-42 43 44 45 46} )
+ENDPOINTS=( ${XFP_ENDPOINTS:-predicted_mask mask_free} )
+DATE_TAG="${XFP_DATE_TAG:-2026-02-17}"
+OUTPUT_TAG="${XFP_OUTPUT_TAG:-${EXPERIMENT}_${DATE_TAG}}"
+HASH_SOURCE="${XFP_HASH_SOURCE:-registry}"  # registry|none
 AUDIT_DIR="${PROJECT_ROOT}/reports_v2/audits"
 ARTIFACT_ROOT="${PROJECT_ROOT}/reports_v2/gate3_seed_artifacts"
-MATCH_CSV="${AUDIT_DIR}/GATE3_RECONSTRUCT_HASH_MATCH_${SLURM_JOB_ID:-nojob}.csv"
+SAFE_OUTPUT_TAG="$(echo "${OUTPUT_TAG}" | tr '/: ' '___')"
+MATCH_CSV="${AUDIT_DIR}/GATE3_RECONSTRUCT_HASH_MATCH_${SAFE_OUTPUT_TAG}_${SLURM_JOB_ID:-nojob}.csv"
+OUT_CSV="${AUDIT_DIR}/GATE3_FULL_SEEDS_STATS_${SAFE_OUTPUT_TAG}.csv"
+OUT_JSON="${AUDIT_DIR}/GATE3_FULL_SEEDS_SUMMARY_${SAFE_OUTPUT_TAG}.json"
+OUT_MD="${AUDIT_DIR}/GATE3_FULL_SEEDS_STATS_${SAFE_OUTPUT_TAG}.md"
 STRICT_HASH_MATCH="${STRICT_HASH_MATCH:-0}"
 
 mkdir -p "${AUDIT_DIR}" "${ARTIFACT_ROOT}" "${PROJECT_ROOT}/logs"
@@ -40,6 +47,23 @@ export XFP_MODEL_UNET_JSRT_FULL="/storage/xai_cxr_safety/models/jsrt_unet_baseli
 export XFP_MODEL_UNET_MONTGOMERY_FULL="/storage/xai_cxr_safety/models/montgomery_unet_baseline.pt"
 export XFP_MODEL_UNET_SHENZHEN_FULL="/storage/xai_cxr_safety/models/shenzhen_unet_baseline.pt"
 export XFP_MODEL_UNET_NIH_FULL="/storage/xai_cxr_safety/models/nih_unet_transfer.pt"
+
+read -r ID_DATASET OOD_DATASET < <(
+  python - <<PY
+import yaml
+exp = "${EXPERIMENT}"
+with open("configs/experiments.yaml", "r", encoding="utf-8") as fh:
+    cfg = yaml.safe_load(fh)
+item = cfg["experiments"][exp]
+print(item["train_dataset"], item["test_datasets"][0])
+PY
+)
+
+echo "[gate3] batch_tag=${BATCH_TAG} experiment=${EXPERIMENT} subset=${SUBSET}"
+echo "[gate3] id_dataset=${ID_DATASET} ood_dataset=${OOD_DATASET}"
+echo "[gate3] seeds=${SEEDS[*]} endpoints=${ENDPOINTS[*]}"
+echo "[gate3] hash_source=${HASH_SOURCE} strict_hash_match=${STRICT_HASH_MATCH}"
+echo "[gate3] outputs: ${OUT_CSV} | ${OUT_JSON} | ${OUT_MD}"
 
 echo "seed,endpoint,expected_hash,actual_hash,match" > "${MATCH_CSV}"
 
@@ -101,7 +125,7 @@ compute_output_hash() {
 for seed in "${SEEDS[@]}"; do
   for endpoint in "${ENDPOINTS[@]}"; do
     expected_hash="$(extract_expected_hash "${seed}" "${endpoint}")"
-    if [[ -z "${expected_hash}" ]]; then
+    if [[ "${HASH_SOURCE}" == "registry" && -z "${expected_hash}" ]]; then
       echo "[ERROR] expected hash not found for seed=${seed}, endpoint=${endpoint}"
       exit 1
     fi
@@ -120,32 +144,37 @@ for seed in "${SEEDS[@]}"; do
       --skip-validate
 
     actual_hash="$(compute_output_hash "${out_dir}")"
-    match="false"
-    if [[ "${actual_hash}" == "${expected_hash}" ]]; then
-      match="true"
+    match="na"
+    if [[ "${HASH_SOURCE}" == "registry" ]]; then
+      match="false"
+      if [[ "${actual_hash}" == "${expected_hash}" ]]; then
+        match="true"
+      fi
+      if [[ "${match}" != "true" && "${STRICT_HASH_MATCH}" == "1" ]]; then
+        echo "[ERROR] hash mismatch for seed=${seed}, endpoint=${endpoint}"
+        exit 1
+      fi
+      if [[ "${match}" != "true" ]]; then
+        echo "[WARN] hash mismatch for seed=${seed}, endpoint=${endpoint}; continuing (STRICT_HASH_MATCH=${STRICT_HASH_MATCH})"
+      fi
     fi
     echo "${seed},${endpoint},${expected_hash},${actual_hash},${match}" >> "${MATCH_CSV}"
     echo "[INFO] hash_check seed=${seed} endpoint=${endpoint} match=${match}"
-    if [[ "${match}" != "true" && "${STRICT_HASH_MATCH}" == "1" ]]; then
-      echo "[ERROR] hash mismatch for seed=${seed}, endpoint=${endpoint}"
-      exit 1
-    fi
-    if [[ "${match}" != "true" ]]; then
-      echo "[WARN] hash mismatch for seed=${seed}, endpoint=${endpoint}; continuing (STRICT_HASH_MATCH=${STRICT_HASH_MATCH})"
-    fi
   done
 done
 
 python scripts/gate3_full_seeds_analysis.py \
   --artifacts-root "${ARTIFACT_ROOT}" \
   --experiment "${EXPERIMENT}" \
-  --seeds 42 43 44 45 46 \
-  --endpoints predicted_mask mask_free \
+  --id-dataset "${ID_DATASET}" \
+  --ood-dataset "${OOD_DATASET}" \
+  --seeds "${SEEDS[@]}" \
+  --endpoints "${ENDPOINTS[@]}" \
   --n-boot 1000 \
   --top-k 10 \
-  --out-csv "${AUDIT_DIR}/GATE3_FULL_SEEDS_STATS.csv" \
-  --out-json "${AUDIT_DIR}/GATE3_FULL_SEEDS_SUMMARY.json" \
-  --out-md "${AUDIT_DIR}/GATE3_FULL_SEEDS_STATS_2026-02-17.md"
+  --out-csv "${OUT_CSV}" \
+  --out-json "${OUT_JSON}" \
+  --out-md "${OUT_MD}"
 
 echo "[DONE] Gate-3 reconstruction + statistical analysis completed."
 echo "[DONE] Hash match table: ${MATCH_CSV}"
