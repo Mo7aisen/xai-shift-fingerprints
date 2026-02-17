@@ -9,6 +9,7 @@ EXPERIMENT="${2:-jsrt_baseline}"
 SEED="42"
 MAX_RUNTIME_SEC="${MAX_RUNTIME_SEC:-1800}" # 30 min hard limit
 ENDPOINTS=("predicted_mask" "mask_free")
+ALLOW_NON_PILOT_SUBSET="${ALLOW_NON_PILOT_SUBSET:-0}"
 REGISTRY_PATH="${ROOT_DIR}/reports_v2/run_registry.csv"
 LOG_DIR="${ROOT_DIR}/logs_v2"
 mkdir -p "${LOG_DIR}"
@@ -17,8 +18,8 @@ if [[ "${EXPERIMENT}" != "jsrt_baseline" ]]; then
   echo "[ERROR] Constrained pilot allows experiment=jsrt_baseline only."
   exit 2
 fi
-if [[ "${SUBSET}" != "pilot5" ]]; then
-  echo "[ERROR] Constrained pilot allows subset=pilot5 only."
+if [[ "${SUBSET}" != "pilot5" && "${ALLOW_NON_PILOT_SUBSET}" != "1" ]]; then
+  echo "[ERROR] Constrained pilot allows subset=pilot5 only (set ALLOW_NON_PILOT_SUBSET=1 to override)."
   exit 2
 fi
 
@@ -81,6 +82,34 @@ PY
 }
 
 GLOBAL_START_EPOCH="$(date +%s)"
+VRAM_SAMPLER_PID=""
+VRAM_SAMPLE_SEC="${VRAM_SAMPLE_SEC:-12}"
+VRAM_LOG_FILE="${LOG_DIR}/vram_sampling_job${SLURM_JOB_ID:-nojob}_$(date -u +%Y%m%dT%H%M%SZ).csv"
+
+start_vram_sampler() {
+  if ! command -v nvidia-smi >/dev/null 2>&1; then
+    return 0
+  fi
+  (
+    echo "timestamp,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used" >"${VRAM_LOG_FILE}"
+    while true; do
+      nvidia-smi \
+        --query-gpu=timestamp,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used \
+        --format=csv,noheader,nounits >>"${VRAM_LOG_FILE}" 2>/dev/null || true
+      sleep "${VRAM_SAMPLE_SEC}"
+    done
+  ) &
+  VRAM_SAMPLER_PID="$!"
+}
+
+stop_vram_sampler() {
+  if [[ -n "${VRAM_SAMPLER_PID}" ]] && kill -0 "${VRAM_SAMPLER_PID}" 2>/dev/null; then
+    kill "${VRAM_SAMPLER_PID}" 2>/dev/null || true
+    wait "${VRAM_SAMPLER_PID}" 2>/dev/null || true
+  fi
+}
+
+start_vram_sampler
 
 run_endpoint() {
   local endpoint="$1"
@@ -143,6 +172,8 @@ run_endpoint() {
 for endpoint in "${ENDPOINTS[@]}"; do
   run_endpoint "${endpoint}"
 done
+
+stop_vram_sampler
 
 env \
   -u XFP_DATASETS_ROOT \
