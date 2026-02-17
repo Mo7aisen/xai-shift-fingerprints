@@ -1,0 +1,76 @@
+version: "1.0.0"
+name: protocol_lock_v1
+status: frozen
+date_frozen: "2026-02-17"
+project: xai_shift_fingerprints_reproduction_20251225_full
+append_only: true
+amendments: []
+
+scope:
+  objective: clinically_relevant_shift_monitoring
+  no_full_gpu_rerun_before_gate1_pass: true
+  no_posthoc_protocol_changes_after_full_seed_start: true
+
+data:
+  cache_root: data/interim
+  fingerprints_root: data/fingerprints
+  datasets:
+    - jsrt
+    - montgomery
+    - shenzhen
+    - nih_chestxray14
+
+seeds:
+  values: [42, 43, 44, 45, 46]
+  bootstrap_seed: 2025
+
+splits:
+  policy: stratified
+  stratify_by:
+    - dataset
+    - disease_prevalence
+  patient_level_required: true
+  overlap_policy: disjoint_train_val_test_by_patient
+
+endpoints:
+  - name: upper_bound_gt
+    allowed_mask_source: ground_truth
+    role: analysis_only
+    publish_as_deployment_claim: false
+  - name: predicted_mask
+    allowed_mask_source: model_prediction
+    role: realistic_analysis
+    publish_as_deployment_claim: limited
+  - name: mask_free
+    allowed_mask_source: none
+    role: deployment_primary
+    publish_as_deployment_claim: true
+
+metrics:
+  primary:
+    - auroc
+    - aupr
+    - fpr95
+  calibration:
+    - ece
+    - brier
+  clinical_link:
+    - pearson_shift_vs_dice_drop
+    - spearman_shift_vs_dice_drop
+
+reporting:
+  ci_method: bootstrap
+  ci_level: 0.95
+  min_seeds_for_claims: 5
+  must_report:
+    - point_estimate
+    - ci_low
+    - ci_high
+
+acceptance_thresholds:
+  mask_free_auroc_min: 0.90
+  upper_bound_auroc_min: 0.95
+  max_ci_width: 0.06
+  min_feature_stability_jaccard: 0.75
+  min_dice_drop_correlation: 0.60
+  max_perturbation_degradation_percent: 20
