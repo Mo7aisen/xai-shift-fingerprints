@@ -11,6 +11,8 @@ MAX_RUNTIME_SEC="${MAX_RUNTIME_SEC:-1800}" # 30 min hard limit
 ENDPOINTS=("predicted_mask" "mask_free")
 ALLOW_NON_PILOT_SUBSET="${ALLOW_NON_PILOT_SUBSET:-0}"
 ALLOW_NON_BASELINE_EXPERIMENT="${ALLOW_NON_BASELINE_EXPERIMENT:-0}"
+BATCH_TAG="${XFP_BATCH_TAG:-adhoc}"
+BATCH_TAG_SAFE="$(printf '%s' "${BATCH_TAG}" | sed -E 's/[^A-Za-z0-9]+/_/g')"
 REGISTRY_PATH="${ROOT_DIR}/reports_v2/run_registry.csv"
 LOG_DIR="${ROOT_DIR}/logs_v2"
 mkdir -p "${LOG_DIR}"
@@ -27,7 +29,8 @@ fi
 ./scripts/preflight_gpu.sh
 
 CONFIG_HASH="$(sha256sum configs/protocol_lock_v1.yaml | awk '{print $1}')"
-COMMIT_HASH="$(git rev-parse --short=12 HEAD 2>/dev/null || echo "nogit")"
+COMMIT_HASH="${XFP_COMMIT_HASH:-$(git rev-parse --short=12 HEAD 2>/dev/null || echo "nogit")}"
+SNAPSHOT_HASH="${XFP_SNAPSHOT_HASH:-unset}"
 mapfile -t DATASETS_IN_SCOPE < <(
   python - <<PY
 import yaml
@@ -70,6 +73,7 @@ append_registry_row() {
   local start_utc="$5"
   local end_utc="$6"
   local notes="$7"
+  local notes_with_trace="${notes}; batch_tag=${BATCH_TAG_SAFE}; snapshot_hash=${SNAPSHOT_HASH}"
   python - <<PY
 from pathlib import Path
 import csv
@@ -86,7 +90,7 @@ row = {
     "gate_passed": "${gate_passed}",
     "start_utc": "${start_utc}",
     "end_utc": "${end_utc}",
-    "notes": "${notes}",
+    "notes": "${notes_with_trace}",
 }
 with path.open("a", newline="", encoding="utf-8") as fh:
     writer = csv.DictWriter(
@@ -113,6 +117,7 @@ GLOBAL_START_EPOCH="$(date +%s)"
 VRAM_SAMPLER_PID=""
 VRAM_SAMPLE_SEC="${VRAM_SAMPLE_SEC:-12}"
 VRAM_LOG_FILE="${LOG_DIR}/vram_sampling_job${SLURM_JOB_ID:-nojob}_$(date -u +%Y%m%dT%H%M%SZ).csv"
+echo "[TRACE] batch_tag=${BATCH_TAG_SAFE} commit=${COMMIT_HASH} snapshot_hash=${SNAPSHOT_HASH}"
 
 start_vram_sampler() {
   if ! command -v nvidia-smi >/dev/null 2>&1; then
@@ -152,7 +157,7 @@ run_endpoint() {
 
   local ts run_id log_file start_utc
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
-  run_id="gpu_pilot_${EXPERIMENT_TAG}_${SUBSET}_${endpoint}_seed${SEED}_${ts}"
+  run_id="gpu_pilot_${BATCH_TAG_SAFE}_${EXPERIMENT_TAG}_${SUBSET}_${endpoint}_seed${SEED}_${ts}"
   log_file="${LOG_DIR}/${run_id}.log"
   start_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
