@@ -1,0 +1,11 @@
+metadata_path,backup_path,rows,missing_before,missing_after,changed
+data/interim/jsrt/full/metadata.parquet,,247,247,0,True
+data/interim/jsrt/pilot1/metadata.parquet,,1,0,0,False
+data/interim/jsrt/pilot5/metadata.parquet,,5,5,0,True
+data/interim/montgomery/full/metadata.parquet,,138,138,0,True
+data/interim/montgomery/pilot5/metadata.parquet,,5,5,0,True
+data/interim/nih_chestxray14/full/metadata.parquet,,112120,112120,0,True
+data/interim/nih_chestxray14/pilot20/metadata.parquet,,20,20,0,True
+data/interim/shenzhen/full/metadata.parquet,,566,566,0,True
+data/interim/shenzhen/pilot20/metadata.parquet,,20,20,0,True
+data/interim/shenzhen/pilot5/metadata.parquet,,5,5,0,True
