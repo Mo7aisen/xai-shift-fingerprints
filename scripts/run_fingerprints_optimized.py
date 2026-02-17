@@ -39,6 +39,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force re-run even if fingerprint already exists",
     )
+    parser.add_argument(
+        "--endpoint-mode",
+        default="upper_bound_gt",
+        choices=["upper_bound_gt", "predicted_mask", "mask_free"],
+        help="Feature extraction endpoint mode.",
+    )
     return parser.parse_args()
 
 
@@ -65,7 +71,10 @@ def main():
     print(f"Subset: {exp_cfg.subset}")
 
     # Check if already exists
-    fingerprint_dir = paths_cfg.fingerprints_root / exp_cfg.key
+    if args.endpoint_mode == "upper_bound_gt":
+        fingerprint_dir = paths_cfg.fingerprints_root / exp_cfg.key
+    else:
+        fingerprint_dir = paths_cfg.fingerprints_root / args.endpoint_mode / exp_cfg.key
     summary_file = fingerprint_dir / "summary.json"
 
     if summary_file.exists() and not args.force:
@@ -90,6 +99,7 @@ def main():
             exp_cfg=exp_cfg,
             paths_cfg=paths_cfg,
             device=args.device,
+            endpoint_mode=args.endpoint_mode,
         )
 
         print(f"\n{'='*70}")

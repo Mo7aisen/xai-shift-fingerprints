@@ -46,6 +46,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Override subset defined in experiment config.",
     )
+    parser.add_argument(
+        "--endpoint-mode",
+        default="upper_bound_gt",
+        choices=["upper_bound_gt", "predicted_mask", "mask_free"],
+        help="Feature extraction endpoint mode. upper_bound_gt is analysis-only.",
+    )
     return parser.parse_args()
 
 
@@ -55,7 +61,12 @@ def main() -> None:
     exp_cfg = load_experiment_config(Path(args.experiments_config), args.experiment)
     if args.subset:
         exp_cfg.subset = args.subset  # type: ignore[assignment]
-    run_fingerprint_experiment(exp_cfg=exp_cfg, paths_cfg=paths_cfg, device=args.device)
+    run_fingerprint_experiment(
+        exp_cfg=exp_cfg,
+        paths_cfg=paths_cfg,
+        device=args.device,
+        endpoint_mode=args.endpoint_mode,
+    )
 
 
 if __name__ == "__main__":
