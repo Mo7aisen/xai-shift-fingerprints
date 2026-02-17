@@ -39,6 +39,12 @@ Expected baseline artifacts:
 - `results/baselines/jsrt_to_shenzhen_full/journal_ood_baselines_jsrt_to_shenzhen_full.csv`
 - `results/baselines/jsrt_to_shenzhen_full/journal_ood_baselines_jsrt_to_shenzhen_full.md`
 
+Automated watcher option (already started on cluster for dependency `2670`):
+
+```bash
+nohup scripts/submit_baseline_when_slot_free.sh 2670 jsrt_to_shenzhen full >/dev/null 2>&1 &
+```
+
 ## Paper Table Builder
 After Gate-3/5 and baselines complete:
 
