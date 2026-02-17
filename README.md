@@ -356,7 +356,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For questions or collaboration inquiries:
 - **Email**: mohammed.mohaisen@edu.bme.hu
-- **Issues**: [GitHub Issues](https://github.com/<org-or-user>/xai-shift-fingerprints/issues)
+- **Issues**: [GitHub Issues](https://github.com/Mo7aisen/xai-shift-fingerprints/issues)
 
 ---
 
