@@ -91,7 +91,12 @@ def backfill_file(metadata_path: Path, *, dry_run: bool, backup: bool) -> Backfi
             backup_path = metadata_path.with_name(f"{metadata_path.name}.bak.{ts}")
             shutil.copy2(metadata_path, backup_path)
 
-        with tempfile.NamedTemporaryFile(prefix="metadata_backfill_", suffix=".parquet", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(
+            prefix="metadata_backfill_",
+            suffix=".parquet",
+            dir=str(metadata_path.parent),
+            delete=False,
+        ) as tmp:
             tmp_path = Path(tmp.name)
         try:
             df.to_parquet(tmp_path, index=False)

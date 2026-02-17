@@ -144,11 +144,20 @@ for endpoint in "${ENDPOINTS[@]}"; do
   run_endpoint "${endpoint}"
 done
 
-pytest -q \
-  tests/test_all_metadata_have_patient_id.py \
-  tests/test_gt_leakage.py \
-  tests/test_smoke.py \
-  tests/test_metadata.py \
-  tests/test_shift_metrics.py
+env \
+  -u XFP_DATASETS_ROOT \
+  -u XFP_MODELS_ROOT \
+  -u XFP_FINGERPRINTS_ROOT \
+  -u XFP_CACHE_ROOT \
+  -u XFP_MODEL_UNET_JSRT_FULL \
+  -u XFP_MODEL_UNET_MONTGOMERY_FULL \
+  -u XFP_MODEL_UNET_SHENZHEN_FULL \
+  -u XFP_MODEL_UNET_NIH_FULL \
+  pytest -q \
+    tests/test_all_metadata_have_patient_id.py \
+    tests/test_gt_leakage.py \
+    tests/test_smoke.py \
+    tests/test_metadata.py \
+    tests/test_shift_metrics.py
 
 echo "[DONE] Constrained GPU pilot completed."
