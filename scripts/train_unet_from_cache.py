@@ -7,10 +7,12 @@ import argparse
 import json
 import logging
 import random
+import re
 from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -49,6 +51,56 @@ def split_indices(n: int, seed: int, train_ratio: float) -> Tuple[List[int], Lis
     random.Random(seed).shuffle(idx)
     cut = int(train_ratio * n)
     return idx[:cut], idx[cut:]
+
+
+def _infer_patient_id(sample_id: str) -> str:
+    match = re.match(r"^(.*)_\d+$", str(sample_id))
+    if match:
+        return match.group(1)
+    return str(sample_id)
+
+
+def _load_patient_ids(cache_dir: Path, files: List[Path]) -> List[str]:
+    metadata_path = cache_dir / "metadata.parquet"
+    sample_ids = [path.stem for path in files]
+    if not metadata_path.exists():
+        return [_infer_patient_id(sample_id) for sample_id in sample_ids]
+
+    metadata = pd.read_parquet(metadata_path)
+    if "sample_id" not in metadata.columns:
+        return [_infer_patient_id(sample_id) for sample_id in sample_ids]
+
+    if "patient_id" in metadata.columns:
+        patient_map = {
+            str(row.sample_id): str(row.patient_id)
+            for row in metadata[["sample_id", "patient_id"]].itertuples(index=False)
+        }
+        return [patient_map.get(sample_id, _infer_patient_id(sample_id)) for sample_id in sample_ids]
+
+    return [_infer_patient_id(sample_id) for sample_id in sample_ids]
+
+
+def split_indices_grouped(
+    patient_ids: List[str],
+    *,
+    seed: int,
+    train_ratio: float,
+) -> Tuple[List[int], List[int]]:
+    unique_ids = sorted(set(patient_ids))
+    if len(unique_ids) <= 1:
+        return split_indices(len(patient_ids), seed, train_ratio)
+
+    random.Random(seed).shuffle(unique_ids)
+    cut = int(round(train_ratio * len(unique_ids)))
+    cut = max(1, min(len(unique_ids) - 1, cut))
+    train_groups = set(unique_ids[:cut])
+    val_groups = set(unique_ids[cut:])
+
+    train_idx = [idx for idx, patient_id in enumerate(patient_ids) if patient_id in train_groups]
+    val_idx = [idx for idx, patient_id in enumerate(patient_ids) if patient_id in val_groups]
+    if not train_idx or not val_idx:
+        return split_indices(len(patient_ids), seed, train_ratio)
+    return train_idx, val_idx
 
 
 def parse_args() -> argparse.Namespace:
@@ -94,7 +146,12 @@ def main() -> None:
     if not files:
         raise RuntimeError(f"No cache npz files found in {cache_dir}")
 
-    train_idx, val_idx = split_indices(len(files), args.seed, args.train_ratio)
+    patient_ids = _load_patient_ids(cache_dir, files)
+    train_idx, val_idx = split_indices_grouped(
+        patient_ids,
+        seed=args.seed,
+        train_ratio=args.train_ratio,
+    )
     train_files = [files[i] for i in train_idx]
     val_files = [files[i] for i in val_idx]
     LOGGER.info("cache files: total=%d train=%d val=%d", len(files), len(train_files), len(val_files))
