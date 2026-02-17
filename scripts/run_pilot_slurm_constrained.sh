@@ -17,7 +17,9 @@ AUDIT_DIR="${PROJECT_ROOT}/reports_v2/audits"
 SEED="${XFP_SEED:-42}"
 EXPERIMENT="${XFP_EXPERIMENT:-jsrt_baseline}"
 SUBSET="${XFP_SUBSET:-pilot5}"
-RUN_ID="slurm_${EXPERIMENT}_seed${SEED}_${SUBSET}_${SLURM_JOB_ID:-nojob}"
+BATCH_TAG="${XFP_BATCH_TAG:-adhoc}"
+BATCH_TAG_SAFE="$(printf '%s' "${BATCH_TAG}" | sed -E 's/[^A-Za-z0-9]+/_/g')"
+RUN_ID="slurm_${BATCH_TAG_SAFE}_${EXPERIMENT}_seed${SEED}_${SUBSET}_${SLURM_JOB_ID:-nojob}"
 ENDPOINT_DESC="predicted_mask+mask_free"
 
 mkdir -p "${AUDIT_DIR}"
@@ -33,6 +35,7 @@ append_registry_row() {
   local start_utc="$3"
   local end_utc="$4"
   local notes="$5"
+  local notes_with_trace="${notes}; batch_tag=${BATCH_TAG_SAFE}; snapshot_hash=${SNAPSHOT_HASH}"
 
   python - <<PY
 from pathlib import Path
@@ -50,7 +53,7 @@ row = {
     "gate_passed": "${gate_passed}",
     "start_utc": "${start_utc}",
     "end_utc": "${end_utc}",
-    "notes": "${notes}",
+    "notes": "${notes_with_trace}",
 }
 with path.open("a", newline="", encoding="utf-8") as fh:
     writer = csv.DictWriter(
@@ -87,6 +90,9 @@ Job ID: ${SLURM_JOB_ID:-unknown}
 Run ID: ${RUN_ID}
 Status: FAILED
 Exit code: ${rc}
+Batch tag: ${BATCH_TAG_SAFE}
+Commit hash: ${COMMIT_HASH}
+Snapshot hash: ${SNAPSHOT_HASH}
 
 ## Context
 - Experiment: ${EXPERIMENT}
@@ -149,7 +155,8 @@ for dataset in "${DATASETS_IN_SCOPE[@]}"; do
   fi
 done
 
-COMMIT_HASH="$(git rev-parse --short=12 HEAD 2>/dev/null || echo 'nogit')"
+COMMIT_HASH="${XFP_COMMIT_HASH:-$(git rev-parse --short=12 HEAD 2>/dev/null || echo 'nogit')}"
+SNAPSHOT_HASH="${XFP_SNAPSHOT_HASH:-unset}"
 CONFIG_HASH="$(sha256sum configs/protocol_lock_v1.yaml | awk '{print $1}')"
 INPUT_DATA_HASH="$(
   {
@@ -183,7 +190,9 @@ append_registry_row "running" "false" "${START_UTC}" "" "slurm pilot started on 
 
 log "Starting constrained Slurm pilot"
 log "Run ID: ${RUN_ID}"
+log "Batch tag: ${BATCH_TAG_SAFE}"
 log "Commit: ${COMMIT_HASH}"
+log "Snapshot hash: ${SNAPSHOT_HASH}"
 log "Config hash: ${CONFIG_HASH}"
 log "Input hash: ${INPUT_DATA_HASH}"
 
