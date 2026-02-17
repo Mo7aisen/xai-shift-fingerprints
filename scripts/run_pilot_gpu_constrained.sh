@@ -6,7 +6,7 @@ cd "${ROOT_DIR}"
 
 SUBSET="${1:-pilot5}"
 EXPERIMENT="${2:-jsrt_baseline}"
-SEED="42"
+SEED="${XFP_SEED:-42}"
 MAX_RUNTIME_SEC="${MAX_RUNTIME_SEC:-1800}" # 30 min hard limit
 ENDPOINTS=("predicted_mask" "mask_free")
 ALLOW_NON_PILOT_SUBSET="${ALLOW_NON_PILOT_SUBSET:-0}"
@@ -164,7 +164,8 @@ run_endpoint() {
     --experiment "${EXPERIMENT}" \
     --subset "${SUBSET}" \
     --device cuda \
-    --endpoint-mode "${endpoint}" >"${log_file}" 2>&1
+    --endpoint-mode "${endpoint}" \
+    --seed "${SEED}" >"${log_file}" 2>&1
   local rc=$?
   set -e
 

@@ -52,6 +52,12 @@ def parse_args() -> argparse.Namespace:
         choices=["upper_bound_gt", "predicted_mask", "mask_free"],
         help="Feature extraction endpoint mode. upper_bound_gt is analysis-only.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Optional random seed for reproducibility controls.",
+    )
     return parser.parse_args()
 
 
@@ -66,6 +72,7 @@ def main() -> None:
         paths_cfg=paths_cfg,
         device=args.device,
         endpoint_mode=args.endpoint_mode,
+        seed=args.seed,
     )
 
 

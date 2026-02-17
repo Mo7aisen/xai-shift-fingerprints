@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,9 +77,12 @@ def run_fingerprint_experiment(
     paths_cfg: PathsConfig,
     device: str = "cuda",
     endpoint_mode: str = "upper_bound_gt",
+    seed: int | None = None,
 ) -> FingerprintResult:
     """Generate attribution fingerprints for configured datasets."""
     _validate_endpoint_mode(endpoint_mode)
+    if seed is not None:
+        _set_reproducibility_seed(seed)
 
     if device.startswith("cuda") and not torch.cuda.is_available():
         print("[xfp] Requested CUDA device but no GPU detected; falling back to CPU.")
@@ -134,6 +138,14 @@ def run_fingerprint_experiment(
         dataset_tables=per_dataset_tables,
         summaries=summaries,
     )
+
+
+def _set_reproducibility_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def _resolve_checkpoint(dataset_key: str, train_dataset: str, paths_cfg: PathsConfig) -> Path:
