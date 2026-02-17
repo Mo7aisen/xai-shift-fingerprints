@@ -10,43 +10,40 @@ Official implementation of **"Attribution Fingerprinting for Dataset Shift Detec
 
 ---
 
-## Current Status (2026-02-05)
+## Current Status (2026-02-17)
 
-- Canonical manuscript source: `manuscript/`
-- Active submission package: `submission_medical_image_analysis/`
-- Legacy submission snapshots archived at:
-  - `archive/old_submissions_2026-02-05/final_elsevier_submission_2026-01-21.zip`
-  - `archive/old_submissions_2026-02-05/journal_submission_bundle_2025-12-23.zip`
+Gate-based validation for publication readiness is completed:
 
-### Recently Completed
+- Gate-1: PASS (protocol integrity / leakage controls)
+- Gate-2: PASS (pilot readiness + constrained launch controls)
+- Gate-3: PASS (official 5-seed batch + statistical criteria)
+- Gate-4: PASS (IG quality + robustness)
+- Gate-5: PASS (clinical relevance + bitwise determinism re-audit)
+- Gate-6: PASS (reproducibility package + frozen manifests + final bundle)
 
-- ResNet OOD baseline completed on **2026-01-30** (`results/baselines/resnet_ood_auc.csv`)
-- Energy/MSP OOD baseline completed on **2026-02-04** (`results/baselines/energy_ood_auc.csv`)
-- Canonical manuscript and submission package synchronized and LaTeX-validated on **2026-02-05**
+Primary reproducibility artifacts:
 
-### Pending (Blocked by GPU Occupancy)
-
-- `python scripts/run_rise_segmentation.py --max-samples 200 --n-masks 1000 --mask-batch 32`
-- `python scripts/generate_publication_figures_final.py` (regeneration after RISE outputs)
-
-GPU is currently occupied by a separate running project (`/home/ubuntu/UARF-AQA`), so pending GPU steps should be resumed only after that workload finishes.
+- `reports_v2/audits/GATE6_REPRODUCIBILITY_2026-02-17.md`
+- `reports_v2/audits/GATE6_REPRO_SUMMARY.json`
+- `reports_v2/releases/GATE6_REPRO_BUNDLE_gate6_final_2026-02-17.tar.gz`
+- `reports_v2/releases/GATE6_REPRO_BUNDLE_gate6_final_2026-02-17.tar.gz.sha256`
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Key Features](#-key-features)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Dataset Preparation](#-dataset-preparation)
-- [Reproducing Results](#-reproducing-results)
-- [Project Structure](#-project-structure)
-- [Citation](#-citation)
-- [License](#-license)
+- [Key Features](#key-features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Dataset Preparation](#dataset-preparation)
+- [Reproducing Results](#reproducing-results)
+- [Project Structure](#project-structure)
+- [Citation](#citation)
+- [License](#license)
 
 ---
 
-## 🎯 Key Features
+## Key Features
 
 - **Attribution Fingerprinting**: Extract 121 features from Integrated Gradients and Grad-CAM attribution maps
 - **Multi-Scale Shift Detection**: Quantify distribution changes using KL divergence, Earth Mover's Distance, and Graph Edit Distance
@@ -57,7 +54,7 @@ GPU is currently occupied by a separate running project (`/home/ubuntu/UARF-AQA`
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
@@ -69,8 +66,8 @@ GPU is currently occupied by a separate running project (`/home/ubuntu/UARF-AQA`
 
 ```bash
 # Clone the repository
-git clone https://github.com/<org-or-user>/xai-shift-fingerprints.git
-cd xai-shift-fingerprints
+git clone https://github.com/Mo7aisen/xai.git
+cd xai
 
 # Create conda environment
 conda env create -f environment.yml
@@ -96,7 +93,7 @@ The package will automatically search these directories for UNet model definitio
 
 ---
 
-## 🔄 Reproducibility
+## Reproducibility
 
 All experiments use fixed random seeds for reproducibility:
 
@@ -106,13 +103,13 @@ All experiments use fixed random seeds for reproducibility:
 | Train/test splits | 42 | Dataset partitioning |
 | Permutation tests | 2025 | Statistical significance |
 
-**Metrics Traceability**: All reported metrics are logged in `manuscript/claims/metrics.json` with source files and reproduction commands.
+**Metrics Traceability**: Gate reports, run registry, and reproducibility manifests are stored under `reports_v2/`.
 
 **Code Availability Statement**: This code is available under MIT license. All experiments can be reproduced using the scripts and configurations provided. The repository URL and archived release DOI will be provided upon acceptance.
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Configure Paths
 
@@ -157,7 +154,7 @@ Results are saved in `reports/divergence/`:
 
 ---
 
-## 📊 Dataset Preparation
+## Dataset Preparation
 
 ### Supported Datasets
 
@@ -189,7 +186,7 @@ python scripts/run_nih_mask_qc.py --samples 300 --seed 2025
 
 ---
 
-## 🔬 Reproducing Results
+## Reproducing Results
 
 ### Complete Experimental Pipeline
 
@@ -241,59 +238,34 @@ python scripts/permutation_test.py \
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
-```
-xai_shift_fingerprints/
-├── configs/              # Experiment configurations and paths
-│   ├── paths.yaml
-│   ├── experiments.yaml
-│   └── subsets/
-├── data/                 # Data caches (not tracked in git)
-│   ├── fingerprints/     # Parquet files with 121-feature fingerprints
-│   ├── interim/          # Preprocessed images and masks
-│   └── metadata/         # Acquisition metadata (spacing, projection, age)
-├── docs/                 # Architecture notes and methodology
-├── manuscript/           # LaTeX manuscript and figures
-│   ├── main.tex          # Main manuscript file
-│   ├── references.bib    # Bibliography
-│   ├── figures/          # Publication-quality PDF figures
-│   └── tables/           # LaTeX tables
-├── notebooks/            # Jupyter notebooks for exploration
-├── reports/              # Generated analysis reports (Markdown + plots)
-│   ├── divergence/
-│   ├── deployment/
-│   ├── error_correlation/
-│   └── external_validation/
-├── results/              # Experimental outputs
-│   ├── figures/          # High-res PNG/PDF figures
-│   ├── metrics/          # CSV/JSON metric dumps
-│   └── tables/           # LaTeX/CSV tables
-├── scripts/              # CLI entrypoints for pipeline stages
-│   ├── prepare_data.py
-│   ├── run_fingerprint.py
-│   ├── compute_divergence.py
-│   └── run_all_analyses.sh
-├── src/xfp/              # Core Python package
-│   ├── fingerprints/     # Feature extraction (coverage, border, topology)
-│   ├── divergence/       # KL, EMD, GED computation
-│   ├── preprocessing/    # Image normalization and mask QA
-│   └── utils/            # Logging, plotting, I/O
-├── tests/                # Pytest suite
-├── environment.yml       # Conda environment specification
-├── pyproject.toml        # Poetry dependencies
-└── README.md
+```text
+xai/
+├── configs/                     # experiments, paths, locked protocol
+├── scripts/                     # training/eval/gate runners
+├── src/xfp/                     # core package
+├── tests/                       # anti-leakage + smoke tests
+├── reports_v2/                  # governance, audits, manifests, release bundle
+│   ├── audits/
+│   ├── manifests/
+│   └── releases/
+├── reports/                     # legacy audit reports
+├── README.md
+├── pyproject.toml
+├── environment.yml
+└── requirements.txt
 ```
 
 ---
 
-## 📖 Attribution Methods
+## Attribution Methods
 
 We support multiple attribution backends (configurable via `configs/experiments.yaml`):
 
 - **Integrated Gradients** (default): Axiomatic, path-based attribution with 50 interpolation steps
 - **Grad-CAM**: Class activation mapping via gradient backpropagation
-- **SmoothGrad**: Variance reduction via noisy sample averaging (coming soon)
+- **SmoothGrad**: Variance reduction via noisy sample averaging (experimental)
 
 **Fingerprint Features** (121 total):
 1. **Spatial Statistics** (28): coverage, border ratio, centroid displacement, eccentricity
@@ -305,7 +277,7 @@ We support multiple attribution backends (configurable via `configs/experiments.
 
 ---
 
-## 🧪 Quality Assurance
+## Quality Assurance
 
 ### Automated Mask QA
 
@@ -326,7 +298,7 @@ python scripts/run_nih_mask_qc.py \
 
 ---
 
-## 📈 Deployment Monitoring
+## Deployment Monitoring
 
 ### Production Integration
 
@@ -350,7 +322,7 @@ PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 
 ---
 
-## 🎓 Citation
+## Citation
 
 If you use this code or methodology in your research, please cite:
 
@@ -366,13 +338,13 @@ If you use this code or methodology in your research, please cite:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Datasets**: JSRT (Japanese Society of Radiological Technology), Montgomery County (US National Library of Medicine), NIH ChestX-ray14 (NIH Clinical Center)
 - **Funding**: [Add funding agencies or state "None"]
@@ -380,7 +352,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📧 Contact
+## Contact
 
 For questions or collaboration inquiries:
 - **Email**: mohammed.mohaisen@edu.bme.hu
@@ -388,7 +360,7 @@ For questions or collaboration inquiries:
 
 ---
 
-## 🔗 Related Work
+## Related Work
 
 - [Integrated Gradients](https://arxiv.org/abs/1703.01365) (Sundararajan et al., 2017)
 - [Grad-CAM](https://arxiv.org/abs/1610.02391) (Selvaraju et al., 2017)
