@@ -66,7 +66,7 @@ Primary reproducibility artifacts:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Mo7aisen/xai.git
+git clone https://github.com/Mo7aisen/xai-shift-fingerprints.git
 cd xai
 
 # Create conda environment

@@ -2,7 +2,7 @@
 
 The full source code used in this work, including experiment scripts, configuration files, tests, and governance artifacts for Gates 1-6, is available at:
 
-- `https://github.com/Mo7aisen/xai`
+- `https://github.com/Mo7aisen/xai-shift-fingerprints`
 
 The release includes a frozen reproducibility package generated at Gate-6:
 
