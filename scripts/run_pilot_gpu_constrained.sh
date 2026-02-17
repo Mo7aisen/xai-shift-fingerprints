@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
+# Determinism defaults for reproducible research runs.
+export XFP_DETERMINISTIC="${XFP_DETERMINISTIC:-1}"
+export CUBLAS_WORKSPACE_CONFIG="${CUBLAS_WORKSPACE_CONFIG:-:4096:8}"
+export PYTHONHASHSEED="${PYTHONHASHSEED:-0}"
+
 SUBSET="${1:-pilot5}"
 EXPERIMENT="${2:-jsrt_baseline}"
 SEED="${XFP_SEED:-42}"

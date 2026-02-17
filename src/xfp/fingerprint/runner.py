@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 import warnings
 from dataclasses import dataclass
@@ -78,11 +79,13 @@ def run_fingerprint_experiment(
     device: str = "cuda",
     endpoint_mode: str = "upper_bound_gt",
     seed: int | None = None,
+    ig_steps: int = 16,
+    deterministic: bool = False,
 ) -> FingerprintResult:
     """Generate attribution fingerprints for configured datasets."""
     _validate_endpoint_mode(endpoint_mode)
     if seed is not None:
-        _set_reproducibility_seed(seed)
+        _set_reproducibility_seed(seed, deterministic=deterministic)
 
     if device.startswith("cuda") and not torch.cuda.is_available():
         print("[xfp] Requested CUDA device but no GPU detected; falling back to CPU.")
@@ -118,6 +121,7 @@ def run_fingerprint_experiment(
             device=device,
             attribution_methods=exp_cfg.attribution_methods or ["integrated_gradients"],
             endpoint_mode=endpoint_mode,
+            ig_steps=ig_steps,
         )
         output_path = fingerprint_dir / f"{dataset_key}.parquet"
         df.to_parquet(output_path, index=False)
@@ -140,12 +144,32 @@ def run_fingerprint_experiment(
     )
 
 
-def _set_reproducibility_seed(seed: int) -> None:
+def _set_reproducibility_seed(seed: int, *, deterministic: bool = False) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+    if deterministic:
+        try:
+            torch.use_deterministic_algorithms(True, warn_only=True)
+        except TypeError:
+            torch.use_deterministic_algorithms(True)
+        except Exception as exc:  # pragma: no cover - defensive runtime warning
+            warnings.warn(
+                f"Unable to enforce torch deterministic algorithms: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        if hasattr(torch.backends, "cudnn"):
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            if hasattr(torch.backends.cudnn, "allow_tf32"):
+                torch.backends.cudnn.allow_tf32 = False
+        if hasattr(torch.backends, "cuda") and hasattr(torch.backends.cuda, "matmul"):
+            torch.backends.cuda.matmul.allow_tf32 = False
 
 
 def _resolve_checkpoint(dataset_key: str, train_dataset: str, paths_cfg: PathsConfig) -> Path:
@@ -202,6 +226,7 @@ def _process_dataset(
     device: str,
     attribution_methods: List[str],
     endpoint_mode: str,
+    ig_steps: int,
 ) -> pd.DataFrame:
     cache_dir = cache_root / dataset_key / subset
     metadata_path = cache_dir / "metadata.parquet"
@@ -226,6 +251,7 @@ def _process_dataset(
             device=device,
             attribution_methods=attribution_methods,
             endpoint_mode=endpoint_mode,
+            ig_steps=ig_steps,
         )
         sample_metrics.update({"dataset_key": dataset_key, "subset": subset, "sample_id": row.sample_id})
         if endpoint_mode == "upper_bound_gt" and hasattr(row, "mask_coverage"):
@@ -255,6 +281,7 @@ def _compute_sample_metrics(
     device: str,
     attribution_methods: List[str],
     endpoint_mode: str,
+    ig_steps: int,
 ) -> Dict[str, float]:
     data = np.load(cache_file)
     image = data["image"].astype(np.float32)
@@ -287,7 +314,7 @@ def _compute_sample_metrics(
     # Note: First method (index 0) gets no prefix for backward compatibility
     # Subsequent methods are prefixed with their slugified name (e.g., "grad_cam_")
     for idx, method in enumerate(attribution_methods):
-        attribution = _run_attribution_method(method, model, tensor, device=device)
+        attribution = _run_attribution_method(method, model, tensor, device=device, ig_steps=ig_steps)
         # Use method slug as prefix for all methods except the first (backward compat)
         # When only one method is used, features are unprefixed
         # When multiple methods: first unprefixed, rest prefixed by method name
@@ -315,6 +342,7 @@ def _run_attribution_method(
     tensor: torch.Tensor,
     *,
     device: str,
+    ig_steps: int,
 ) -> np.ndarray:
     method = method.lower()
 
@@ -323,7 +351,7 @@ def _run_attribution_method(
         attribution_tensor = compute_integrated_gradients(
             model,
             tensor,
-            n_steps=16,
+            n_steps=ig_steps,
             internal_batch_size=4,
             baseline=baseline_tensor,
         )

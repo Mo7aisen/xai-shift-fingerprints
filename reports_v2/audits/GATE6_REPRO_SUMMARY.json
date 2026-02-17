@@ -1,0 +1,75 @@
+{
+  "generated_utc": "2026-02-17T15:02:48.073080+00:00",
+  "date_tag": "2026-02-17",
+  "bundle_tag": "gate6_final",
+  "gate6_pass": true,
+  "checks": [
+    {
+      "name": "exists:/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE3_FULL_SEEDS_SUMMARY.json",
+      "passed": true,
+      "detail": "present"
+    },
+    {
+      "name": "exists:/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE4_IG_ROBUSTNESS_SUMMARY.json",
+      "passed": true,
+      "detail": "present"
+    },
+    {
+      "name": "exists:/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_FINAL_SUMMARY_REMEDIATED.json",
+      "passed": true,
+      "detail": "present"
+    },
+    {
+      "name": "exists:/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_BITWISE_DETERMINISM_SUMMARY.json",
+      "passed": true,
+      "detail": "present"
+    },
+    {
+      "name": "exists:/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/configs/protocol_lock_v1.yaml",
+      "passed": true,
+      "detail": "present"
+    },
+    {
+      "name": "exists:/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/run_registry.csv",
+      "passed": true,
+      "detail": "present"
+    },
+    {
+      "name": "gate3_statistical_full_pass",
+      "passed": true,
+      "detail": "True"
+    },
+    {
+      "name": "gate4_pass",
+      "passed": true,
+      "detail": "True"
+    },
+    {
+      "name": "gate5_final_pass",
+      "passed": true,
+      "detail": "True"
+    },
+    {
+      "name": "determinism_all_match",
+      "passed": true,
+      "detail": "True"
+    },
+    {
+      "name": "run_registry_nonempty",
+      "passed": true,
+      "detail": "rows=97"
+    }
+  ],
+  "manifests": {
+    "gate_artifacts_manifest": "reports_v2/manifests/freeze_gate_artifacts_2026-02-17.sha256",
+    "gate_artifacts_manifest_files": 721,
+    "gate_artifacts_manifest_sha256": "bc5ad3d6ae1cc7b92eed16fd1245465efee04f4667ab4989c9dcfe2884e45d70"
+  },
+  "bundle": {
+    "bundle_path": "reports_v2/releases/GATE6_REPRO_BUNDLE_gate6_final_2026-02-17.tar.gz",
+    "bundle_sha256": "22b185a2a4c21afe5fd3ced691b06acd3cb194b5ba60e0b6c8c1e9b439597ec5",
+    "bundle_sha256_path": "reports_v2/releases/GATE6_REPRO_BUNDLE_gate6_final_2026-02-17.tar.gz.sha256",
+    "bundle_filelist": "reports_v2/releases/GATE6_REPRO_BUNDLE_FILELIST_gate6_final_2026-02-17.txt",
+    "bundle_file_count": 191
+  }
+}

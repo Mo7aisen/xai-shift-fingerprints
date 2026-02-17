@@ -1,0 +1,10 @@
+[GATE5-FIX] experiment=jsrt_to_montgomery seeds=42 43 44 45 46
+[GATE5-FIX] datasets id=jsrt ood=montgomery
+[GATE5-FIX] score_method=topk_weighted_abs_z top_k=5
+[gate5] completed: PASS
+[gate5] summary -> /storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_CLINICAL_SUMMARY_REMEDIATED.json
+[gate5] report -> /storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_CLINICAL_RELEVANCE_REMEDIATED_2026-02-17.md
+[gate5-final] status=PASS
+[gate5-final] out_json=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_FINAL_SUMMARY_REMEDIATED.json
+[gate5-final] out_md=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_FINAL_REMEDIATED_2026-02-17.md
+[DONE] Gate-5 remediation analysis complete.

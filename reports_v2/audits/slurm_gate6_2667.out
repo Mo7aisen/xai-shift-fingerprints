@@ -1,0 +1,10 @@
+[GATE6] date_tag=2026-02-17 bundle_tag=gate6_final
+..........                                                               [100%]
+10 passed in 2.53s
+Wrote /storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/manifests/freeze_legacy_artifacts_2026-02-17.sha256 (1791 files)
+Wrote /storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/manifests/freeze_code_configs_2026-02-17.sha256 (126 files)
+[gate6] status=PASS
+[gate6] summary_json=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE6_REPRO_SUMMARY.json
+[gate6] summary_md=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE6_REPRODUCIBILITY_2026-02-17.md
+[gate6] bundle=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/releases/GATE6_REPRO_BUNDLE_gate6_final_2026-02-17.tar.gz
+[DONE] Gate-6 packaging complete.

@@ -44,14 +44,35 @@ Status: `PASS`
 
 ### Gate 3 statistical criteria
 
-- CI width threshold for AUROC (`< 0.06`): `PENDING` (not computed by constrained launcher)
-- Feature stability Jaccard threshold (`> 0.75`): `PENDING`
-- Power analysis threshold (`> 0.8`): `PENDING`
+- Statistical analysis artifact: `reports_v2/audits/GATE3_FULL_SEEDS_STATS_2026-02-17.md`
+- Per-seed metrics table: `reports_v2/audits/GATE3_FULL_SEEDS_STATS.csv`
+- Summary JSON: `reports_v2/audits/GATE3_FULL_SEEDS_SUMMARY.json`
+
+Endpoint `predicted_mask`:
+- AUROC mean: `0.8964`
+- AUROC seed-CI width: `0.0000` (`PASS`, threshold `< 0.06`)
+- Feature stability Jaccard mean: `1.0000` (`PASS`, threshold `> 0.75`)
+- Power mean: `1.0000` (`PASS`, threshold `> 0.80`)
+
+Endpoint `mask_free`:
+- AUROC mean: `0.8560`
+- AUROC seed-CI width: `0.0000` (`PASS`, threshold `< 0.06`)
+- Feature stability Jaccard mean: `1.0000` (`PASS`, threshold `> 0.75`)
+- Power mean: `1.0000` (`PASS`, threshold `> 0.80`)
+
+Statistical gate result: `PASS`
+
+### Bitwise Replay Check (Strict Reproducibility Note)
+
+- Replay hash table: `reports_v2/audits/GATE3_RECONSTRUCT_HASH_MATCH_2659.csv`
+- Official-vs-replay output hashes matched: `0/10` (`FAIL`)
+- Interpretation: pipeline is not bitwise deterministic across reruns (same seed/config), likely due GPU-level nondeterminism.
+- Impact: statistical Gate-3 acceptance remains valid; however, byte-level reproducibility hardening is required before final publication package freeze.
 
 ## Final Gate 3 Status
 
-`CONDITIONAL PASS`
+`FULL PASS (with reproducibility warning)`
 
 Interpretation:
-- Engineering reliability + reproducibility objectives for Gate 3 are satisfied.
-- Statistical Gate 3 acceptance remains pending explicit AUROC/CI/stability/power computation on the 5-seed outputs.
+- Engineering and statistical Gate-3 criteria are satisfied (`FULL PASS`).
+- A strict byte-level replay mismatch was observed and is now a tracked risk for Gate-4/packaging hardening.

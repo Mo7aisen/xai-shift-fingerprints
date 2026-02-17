@@ -1,0 +1,39 @@
+{
+  "generated_utc": "2026-02-17T14:49:07.748742+00:00",
+  "root": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate5/determinism",
+  "run_a": "run1",
+  "run_b": "run2",
+  "experiment": "jsrt_to_montgomery",
+  "endpoints": [
+    "predicted_mask",
+    "mask_free"
+  ],
+  "match_rate": 1.0,
+  "all_match": true,
+  "rows": [
+    {
+      "endpoint": "predicted_mask",
+      "dir_a": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate5/determinism/run1/predicted_mask/jsrt_to_montgomery",
+      "dir_b": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate5/determinism/run2/predicted_mask/jsrt_to_montgomery",
+      "hash_a": "4206a4989a7d06d2eff12a8ad73dca6854b46d98784cfce7b60f122075055bcf",
+      "hash_b": "4206a4989a7d06d2eff12a8ad73dca6854b46d98784cfce7b60f122075055bcf",
+      "match": true,
+      "file_count_a": 3,
+      "file_count_b": 3,
+      "mismatch_count": 0,
+      "missing_dir": false
+    },
+    {
+      "endpoint": "mask_free",
+      "dir_a": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate5/determinism/run1/mask_free/jsrt_to_montgomery",
+      "dir_b": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate5/determinism/run2/mask_free/jsrt_to_montgomery",
+      "hash_a": "db05b5d4450b4518c59261fe8c6337d5a922d13e0249538724761b89febb0d9b",
+      "hash_b": "db05b5d4450b4518c59261fe8c6337d5a922d13e0249538724761b89febb0d9b",
+      "match": true,
+      "file_count_a": 3,
+      "file_count_b": 3,
+      "mismatch_count": 0,
+      "missing_dir": false
+    }
+  ]
+}

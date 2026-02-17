@@ -1,0 +1,51 @@
+{
+  "generated_utc": "2026-02-17T14:33:23.796114+00:00",
+  "experiment": "jsrt_to_montgomery",
+  "id_dataset": "jsrt",
+  "ood_dataset": "montgomery",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "endpoints": {
+    "predicted_mask": {
+      "pearson_all_mean": 0.6323277146382359,
+      "pearson_all_ci_low": 0.6323257988219413,
+      "pearson_all_ci_high": 0.6323289691000149,
+      "spearman_all_mean": 0.5747381989771886,
+      "spearman_all_ci_low": 0.5747381989771886,
+      "spearman_all_ci_high": 0.5747381989771886,
+      "pearson_ood_mean": 0.5642150523726291,
+      "spearman_ood_mean": 0.5489247446853687,
+      "pass_pearson": true,
+      "pass_spearman": false,
+      "pass_endpoint": false
+    },
+    "mask_free": {
+      "pearson_all_mean": 0.5756159085615338,
+      "pearson_all_ci_low": 0.5756158122430901,
+      "pearson_all_ci_high": 0.5756159507989959,
+      "spearman_all_mean": 0.5132227390485162,
+      "spearman_all_ci_low": 0.5132080193122939,
+      "spearman_all_ci_high": 0.5132269446874369,
+      "pearson_ood_mean": 0.5332751617138067,
+      "spearman_ood_mean": 0.4999481722143705,
+      "pass_pearson": false,
+      "pass_spearman": false,
+      "pass_endpoint": false
+    }
+  },
+  "thresholds": {
+    "min_correlation": 0.6
+  },
+  "dice_reference_dir": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate5/reference_upper_bound/seed42/jsrt_to_montgomery",
+  "dice_reference_id_mean": 0.9803825059004303,
+  "gate5_pass": false,
+  "artifacts": {
+    "per_seed_csv": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_CLINICAL_PER_SEED.csv",
+    "cases_csv": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/audits/GATE5_CLINICAL_CASES.csv"
+  }
+}

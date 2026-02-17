@@ -45,6 +45,23 @@ def parse_args() -> argparse.Namespace:
         choices=["upper_bound_gt", "predicted_mask", "mask_free"],
         help="Feature extraction endpoint mode.",
     )
+    parser.add_argument(
+        "--ig-steps",
+        type=int,
+        default=16,
+        help="Integrated Gradients interpolation steps.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Optional random seed.",
+    )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Enable deterministic runtime controls.",
+    )
     return parser.parse_args()
 
 
@@ -100,6 +117,9 @@ def main():
             paths_cfg=paths_cfg,
             device=args.device,
             endpoint_mode=args.endpoint_mode,
+            seed=args.seed,
+            ig_steps=args.ig_steps,
+            deterministic=args.deterministic,
         )
 
         print(f"\n{'='*70}")
