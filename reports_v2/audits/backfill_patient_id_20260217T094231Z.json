@@ -1,0 +1,11 @@
+{
+  "cache_root": "data/interim",
+  "dry_run": true,
+  "backup_enabled": true,
+  "files_scanned": 10,
+  "files_changed": 9,
+  "total_rows": 113127,
+  "total_missing_before": 113126,
+  "total_missing_after": 0,
+  "csv_report": "reports_v2/audits/backfill_patient_id_20260217T094231Z.csv"
+}
