@@ -8,6 +8,7 @@ import json
 import numpy as np
 import pandas as pd
 from scipy import ndimage, stats
+from scipy.stats import rankdata
 
 from xfp.config import load_experiment_config, load_paths_config, PathsConfig
 from xfp.fingerprint.runner import run_fingerprint_experiment
@@ -23,6 +24,28 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         default="reports/robustness",
         help="Output directory for robustness artifacts.",
+    )
+    parser.add_argument(
+        "--experiment",
+        default="jsrt_to_montgomery",
+        help="Experiment key from configs/experiments.yaml.",
+    )
+    parser.add_argument(
+        "--endpoint-mode",
+        default="upper_bound_gt",
+        choices=["upper_bound_gt", "predicted_mask", "mask_free"],
+        help="Fingerprint endpoint mode.",
+    )
+    parser.add_argument(
+        "--ig-steps",
+        type=int,
+        default=16,
+        help="Integrated Gradients interpolation steps.",
+    )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Enable deterministic runtime controls.",
     )
     return parser.parse_args()
 
@@ -68,6 +91,37 @@ def _percent_change(new: float, base: float) -> float:
     if not np.isfinite(base) or base == 0:
         return np.nan
     return (new - base) / abs(base) * 100.0
+
+
+def _roc_auc(y: np.ndarray, score: np.ndarray) -> float:
+    n_pos = int(np.sum(y == 1))
+    n_neg = int(np.sum(y == 0))
+    if n_pos == 0 or n_neg == 0:
+        return float("nan")
+    ranks = rankdata(score, method="average")
+    rank_sum_pos = float(np.sum(ranks[y == 1]))
+    return float((rank_sum_pos - (n_pos * (n_pos + 1) / 2.0)) / (n_pos * n_neg))
+
+
+def _shift_auc(ref_df: pd.DataFrame, tgt_df: pd.DataFrame) -> float:
+    common_numeric = []
+    for col in ref_df.columns:
+        if col in {"dataset_key", "subset", "sample_id", "patient_id"} or col.startswith("_"):
+            continue
+        if col in tgt_df.columns and pd.api.types.is_numeric_dtype(ref_df[col]) and pd.api.types.is_numeric_dtype(tgt_df[col]):
+            common_numeric.append(col)
+    if not common_numeric:
+        return float("nan")
+
+    id_df = ref_df[common_numeric].copy()
+    ood_df = tgt_df[common_numeric].copy()
+    mu = id_df.mean(axis=0)
+    sd = id_df.std(axis=0, ddof=0).replace(0.0, 1.0).fillna(1.0)
+    score_id = ((id_df - mu) / sd).abs().mean(axis=1).to_numpy(dtype=float)
+    score_ood = ((ood_df - mu) / sd).abs().mean(axis=1).to_numpy(dtype=float)
+    y = np.concatenate([np.zeros(len(score_id), dtype=int), np.ones(len(score_ood), dtype=int)])
+    score = np.concatenate([score_id, score_ood])
+    return _roc_auc(y, score)
 
 
 def _apply_intensity_shift(image: np.ndarray, delta: float) -> np.ndarray:
@@ -125,11 +179,7 @@ def main() -> None:
     cache_root.mkdir(parents=True, exist_ok=True)
 
     paths_cfg = load_paths_config(Path("configs/paths.yaml"), validate=False)
-    exp_keys = []
-    if "montgomery" in datasets:
-        exp_keys.append("jsrt_to_montgomery")
-    if "shenzhen" in datasets:
-        exp_keys.append("jsrt_to_shenzhen")
+    exp_keys = [args.experiment]
 
     perturbations = {
         "intensity_shift": lambda img: _apply_intensity_shift(img, delta=0.1),
@@ -180,10 +230,22 @@ def main() -> None:
         for exp_key in exp_keys:
             exp_cfg = load_experiment_config(Path("configs/experiments.yaml"), exp_key)
             exp_cfg.subset = subset_name
-            run_fingerprint_experiment(exp_cfg=exp_cfg, paths_cfg=robust_paths, device=args.device)
+            run_fingerprint_experiment(
+                exp_cfg=exp_cfg,
+                paths_cfg=robust_paths,
+                device=args.device,
+                endpoint_mode=args.endpoint_mode,
+                seed=args.seed,
+                ig_steps=args.ig_steps,
+                deterministic=args.deterministic,
+            )
 
-            perturbed_root = robust_paths.fingerprints_root / exp_cfg.key
-            base_root = paths_cfg.fingerprints_root / exp_cfg.key
+            if args.endpoint_mode == "upper_bound_gt":
+                perturbed_root = robust_paths.fingerprints_root / exp_cfg.key
+                base_root = paths_cfg.fingerprints_root / exp_cfg.key
+            else:
+                perturbed_root = robust_paths.fingerprints_root / args.endpoint_mode / exp_cfg.key
+                base_root = paths_cfg.fingerprints_root / args.endpoint_mode / exp_cfg.key
 
             ref_key = exp_cfg.train_dataset
             for tgt_key in exp_cfg.test_datasets:
@@ -205,6 +267,17 @@ def main() -> None:
                         "perturbed": pert_val,
                         "percent_change": _percent_change(pert_val, base_val),
                     })
+
+                base_auc = _shift_auc(ref_base, tgt_base)
+                pert_auc = _shift_auc(ref_pert, tgt_pert)
+                summary_rows.append({
+                    "perturbation": perturb_label,
+                    "comparison": f"{ref_key}_to_{tgt_key}",
+                    "metric": "auroc_shift_detection",
+                    "baseline": base_auc,
+                    "perturbed": pert_auc,
+                    "percent_change": _percent_change(pert_auc, base_auc),
+                })
 
                 # Correlation robustness per dataset
                 for dataset_key, df_base, df_pert in [
@@ -253,6 +326,9 @@ def main() -> None:
     summary_md = output_dir / "robustness_summary.md"
     summary_md.write_text(
         "# Robustness Summary\\n\\n"
+        f"- Experiment: {args.experiment}\\n"
+        f"- Endpoint: {args.endpoint_mode}\\n"
+        f"- IG steps: {args.ig_steps}\\n"
         f"- Samples per dataset: {args.subset_size}\\n"
         f"- Perturbations: {', '.join(perturbations.keys())}\\n"
         "\\nSee `robustness_summary.csv` for full details.\\n"

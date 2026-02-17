@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import _path_setup  # noqa: F401 - ensures xfp is importable
 
 import argparse
@@ -11,6 +12,10 @@ from pathlib import Path
 
 from xfp.config import load_experiment_config, load_paths_config
 from xfp.fingerprint.runner import run_fingerprint_experiment
+
+# Determinism pinning must happen before heavy CUDA work starts.
+if os.getenv("XFP_DETERMINISTIC", "1") == "1":
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,6 +63,25 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional random seed for reproducibility controls.",
     )
+    parser.add_argument(
+        "--ig-steps",
+        type=int,
+        default=int(os.getenv("XFP_IG_STEPS", "16")),
+        help="Integrated Gradients interpolation steps.",
+    )
+    parser.add_argument(
+        "--deterministic",
+        dest="deterministic",
+        action="store_true",
+        help="Enable deterministic runtime controls (default from XFP_DETERMINISTIC=1).",
+    )
+    parser.add_argument(
+        "--no-deterministic",
+        dest="deterministic",
+        action="store_false",
+        help="Disable deterministic runtime controls.",
+    )
+    parser.set_defaults(deterministic=os.getenv("XFP_DETERMINISTIC", "1") == "1")
     return parser.parse_args()
 
 
@@ -73,6 +97,8 @@ def main() -> None:
         device=args.device,
         endpoint_mode=args.endpoint_mode,
         seed=args.seed,
+        ig_steps=args.ig_steps,
+        deterministic=args.deterministic,
     )
 
 

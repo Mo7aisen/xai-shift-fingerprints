@@ -1,0 +1,41 @@
+{
+  "generated_utc": "2026-02-17T14:08:05.462320+00:00",
+  "seed": 42,
+  "experiment": "jsrt_to_montgomery",
+  "ig_steps_compare": [
+    16,
+    32
+  ],
+  "thresholds": {
+    "max_ig_delta": 0.02,
+    "max_robust_degradation_percent": 20.0,
+    "min_ablation_retention": 0.95
+  },
+  "endpoints": {
+    "predicted_mask": {
+      "auc_ig_a": 0.8964090829079387,
+      "auc_ig_b": 0.9071172915566508,
+      "ig_delta_abs": 0.010708208648712025,
+      "auc_top20": 0.9492460247608989,
+      "ablation_retention": 1.058942889870725,
+      "robustness_max_degradation_percent": 10.000613195342813,
+      "pass_ig_delta": true,
+      "pass_ablation": true,
+      "pass_robustness": true,
+      "pass_endpoint": true
+    },
+    "mask_free": {
+      "auc_ig_a": 0.8560406031801913,
+      "auc_ig_b": 0.8725869858592971,
+      "ig_delta_abs": 0.016546382679105798,
+      "auc_top20": 0.8687731033268791,
+      "ablation_retention": 1.0148737105452552,
+      "robustness_max_degradation_percent": 12.03169283528898,
+      "pass_ig_delta": true,
+      "pass_ablation": true,
+      "pass_robustness": true,
+      "pass_endpoint": true
+    }
+  },
+  "gate4_pass": true
+}

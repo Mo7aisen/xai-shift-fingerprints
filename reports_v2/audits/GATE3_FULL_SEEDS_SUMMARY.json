@@ -1,0 +1,52 @@
+{
+  "generated_utc": "2026-02-17T13:31:53.923073+00:00",
+  "artifacts_root": "reports_v2/gate3_seed_artifacts",
+  "experiment": "jsrt_to_montgomery",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "endpoints": [
+    "predicted_mask",
+    "mask_free"
+  ],
+  "criteria": {
+    "auroc_seed_ci_width_lt": 0.06,
+    "jaccard_mean_gt": 0.75,
+    "power_mean_gt": 0.8
+  },
+  "endpoint_summary": {
+    "predicted_mask": {
+      "auroc_mean": 0.8964384204658804,
+      "auroc_std": 0.0,
+      "auroc_seed_ci_width": 0.0,
+      "auroc_bootstrap_ci_width_mean": 0.061121281464530865,
+      "power_mean": 1.0,
+      "jaccard_mean": 1.0,
+      "jaccard_min": 1.0,
+      "jaccard_pairs": 10,
+      "pass_auroc_ci": true,
+      "pass_jaccard": true,
+      "pass_power": true,
+      "pass_endpoint": true
+    },
+    "mask_free": {
+      "auroc_mean": 0.8560406031801913,
+      "auroc_std": 0.0,
+      "auroc_seed_ci_width": 0.0,
+      "auroc_bootstrap_ci_width_mean": 0.07404652936689546,
+      "power_mean": 1.0,
+      "jaccard_mean": 1.0,
+      "jaccard_min": 1.0,
+      "jaccard_pairs": 10,
+      "pass_auroc_ci": true,
+      "pass_jaccard": true,
+      "pass_power": true,
+      "pass_endpoint": true
+    }
+  },
+  "gate3_statistical_full_pass": true
+}

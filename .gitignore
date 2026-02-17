@@ -145,3 +145,11 @@ coverage.xml
 # v2 governance artifacts (tracked)
 !reports_v2/
 !reports_v2/**
+
+# Keep local backups out of Git history
+reports_v2/local_backups/
+
+# Ignore local dry-run bundles (final gate6_final bundle remains trackable if needed)
+reports_v2/releases/GATE6_REPRO_BUNDLE_dryrun_local_*.tar.gz
+reports_v2/releases/GATE6_REPRO_BUNDLE_dryrun_local_*.tar.gz.sha256
+reports_v2/releases/GATE6_REPRO_BUNDLE_FILELIST_dryrun_local_*.txt

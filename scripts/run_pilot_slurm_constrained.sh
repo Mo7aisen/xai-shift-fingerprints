@@ -121,6 +121,9 @@ export XFP_MODEL_UNET_JSRT_FULL="/storage/xai_cxr_safety/models/jsrt_unet_baseli
 export XFP_MODEL_UNET_MONTGOMERY_FULL="/storage/xai_cxr_safety/models/montgomery_unet_baseline.pt"
 export XFP_MODEL_UNET_SHENZHEN_FULL="/storage/xai_cxr_safety/models/shenzhen_unet_baseline.pt"
 export XFP_MODEL_UNET_NIH_FULL="/storage/xai_cxr_safety/models/nih_unet_transfer.pt"
+export XFP_DETERMINISTIC="${XFP_DETERMINISTIC:-1}"
+export CUBLAS_WORKSPACE_CONFIG="${CUBLAS_WORKSPACE_CONFIG:-:4096:8}"
+export PYTHONHASHSEED="${PYTHONHASHSEED:-0}"
 
 if [[ ! -f "${ENV_ACTIVATE}" ]]; then
   echo "[ERROR] Missing virtualenv: ${ENV_ACTIVATE}"
