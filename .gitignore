@@ -1,0 +1,147 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# Poetry
+poetry.lock
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Data directories (too large for git)
+data/
+!data/.gitkeep
+data/fingerprints/
+data/interim/
+data/raw/
+data/processed/
+data/metadata/*.csv
+data/metadata/*.parquet
+
+# Model checkpoints
+models/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pkl
+*.pickle
+
+# Logs
+logs/
+*.log
+
+# Results and reports (generated)
+results/
+!results/.gitkeep
+reports/*
+!reports/.gitkeep
+!reports/audits/
+!reports/audits/**
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.toc
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+*.bcf
+*.run.xml
+*.xdv
+
+# Archive (contains old documentation)
+archive/
+
+# Submission packages
+*.zip
+*.tar.gz
+*.tar
+
+# Experiment outputs
+outputs/
+wandb/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Profiling
+*.prof
+*.lprof
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Backup files
+*.bak
+*.backup
+
+# v2 governance artifacts (tracked)
+!reports_v2/
+!reports_v2/**

@@ -1,0 +1,7 @@
+# Immutable legacy paths (do not overwrite during remediation)
+manuscript/
+submission_medical_image_analysis/
+final_elsevier_submission/
+results/
+reports/
+divergence_comparison_table.csv
