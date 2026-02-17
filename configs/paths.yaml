@@ -1,0 +1,35 @@
+# Workspace-level path configuration.
+# Update these to match your local dataset copies.
+# Optional env overrides: XFP_DATASETS_ROOT, XFP_MODELS_ROOT,
+# XFP_FINGERPRINTS_ROOT, XFP_CACHE_ROOT.
+# Optional per-model override: XFP_MODEL_<MODEL_KEY> (e.g., XFP_MODEL_UNET_NIH_FULL).
+paths:
+  datasets_root: /home/ubuntu/Datasets
+  models_root: /home/ubuntu/models
+  fingerprints_root: /home/ubuntu/xai_shift_fingerprints_reproduction_20251225_full/data/fingerprints
+  cache_root: /home/ubuntu/xai_shift_fingerprints_reproduction_20251225_full/data/interim
+
+datasets:
+  jsrt:
+    images: JSRT/images
+    masks: JSRT/masks_png/lung_combined
+  montgomery:
+    images: Montgomery/CXR_png
+    masks: Montgomery/ManualMask
+  shenzhen:
+    # Canonical dataset spelling is Shenzhen; a legacy `Shenzen` symlink is supported on disk.
+    images: Shenzhen/CXR_png
+    masks: Shenzhen/mask
+  nih_chestxray14:
+    images: NIH_ChestXray14/images/images/images
+    masks: NIH_ChestXray14/masks_auto
+    metadata: NIH_ChestXray14/metadata
+
+models:
+  # Model paths are resolved relative to `paths.models_root` unless absolute.
+  unet_jsrt_full: jsrt_unet_baseline.pt
+  unet_montgomery_full: montgomery_unet_baseline.pt
+  # Must point to a dedicated Shenzhen-trained checkpoint (do not reuse JSRT weights).
+  unet_shenzhen_full: shenzhen_unet_baseline.pt
+  # NIH baseline uses a dedicated checkpoint copy (update once the NIH model is fine-tuned).
+  unet_nih_full: nih_unet_transfer.pt
