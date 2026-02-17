@@ -46,15 +46,15 @@ poetry.lock
 # VS Code
 .vscode/
 
-# Data directories (too large for git)
-data/
-!data/.gitkeep
-data/fingerprints/
-data/interim/
-data/raw/
-data/processed/
-data/metadata/*.csv
-data/metadata/*.parquet
+# Data directories (top-level only; keep source code under src/xfp/data tracked)
+/data/
+!/data/.gitkeep
+/data/fingerprints/
+/data/interim/
+/data/raw/
+/data/processed/
+/data/metadata/*.csv
+/data/metadata/*.parquet
 
 # Model checkpoints
 models/

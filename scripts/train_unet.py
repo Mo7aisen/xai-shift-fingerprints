@@ -19,6 +19,7 @@ from torch.utils.data import DataLoader, Dataset
 
 import _path_setup  # noqa: F401 - ensures xfp is importable
 
+from xfp.data import infer_patient_id
 from xfp.config import load_paths_config
 from xfp.models import UNet
 
@@ -127,24 +128,54 @@ def build_dataset(paths_cfg, dataset_key: str) -> Tuple[List[Path], List[Path]]:
     return image_paths, mask_paths
 
 
+def _grouped_split_indices(
+    patient_ids: List[str],
+    *,
+    seed: int,
+    train_ratio: float = 0.8,
+) -> Tuple[List[int], List[int]]:
+    """Create deterministic patient-level train/val split."""
+    unique_ids = sorted(set(patient_ids))
+    if len(unique_ids) <= 1:
+        indices = list(range(len(patient_ids)))
+        return indices, []
+
+    random.Random(seed).shuffle(unique_ids)
+    cut = int(round(train_ratio * len(unique_ids)))
+    cut = max(1, min(len(unique_ids) - 1, cut))
+    train_groups = set(unique_ids[:cut])
+    val_groups = set(unique_ids[cut:])
+
+    train_idx = [idx for idx, patient_id in enumerate(patient_ids) if patient_id in train_groups]
+    val_idx = [idx for idx, patient_id in enumerate(patient_ids) if patient_id in val_groups]
+    return train_idx, val_idx
+
+
 def split_data(
     image_paths: List[Path],
-    mask_paths: List[Path],
     *,
+    dataset_key: str,
     splits_map: Dict[str, str] | None,
     seed: int = 42,
 ) -> Tuple[List[int], List[int]]:
+    patient_ids = [infer_patient_id(dataset_key, image_path.stem) for image_path in image_paths]
     if splits_map:
         train_idx = []
         val_idx = []
         for idx, image_path in enumerate(image_paths):
-            split = splits_map.get(image_path.stem)
+            sample_id = image_path.stem
+            patient_id = infer_patient_id(dataset_key, sample_id)
+            split = splits_map.get(patient_id, splits_map.get(sample_id))
             if split == "train":
                 train_idx.append(idx)
             elif split == "val":
                 val_idx.append(idx)
         if train_idx and val_idx:
             return train_idx, val_idx
+
+    train_idx, val_idx = _grouped_split_indices(patient_ids, seed=seed, train_ratio=0.8)
+    if train_idx and val_idx:
+        return train_idx, val_idx
 
     indices = list(range(len(image_paths)))
     random.Random(seed).shuffle(indices)
@@ -190,7 +221,12 @@ def main() -> None:
 
     dataset_root = paths_cfg.datasets[args.dataset].images.resolve().parent
     splits_map = load_splits(dataset_root)
-    train_idx, val_idx = split_data(image_paths, mask_paths, splits_map=splits_map, seed=args.seed)
+    train_idx, val_idx = split_data(
+        image_paths,
+        dataset_key=args.dataset,
+        splits_map=splits_map,
+        seed=args.seed,
+    )
 
     train_ds = LungDataset([image_paths[i] for i in train_idx], [mask_paths[i] for i in train_idx])
     val_ds = LungDataset([image_paths[i] for i in val_idx], [mask_paths[i] for i in val_idx])
