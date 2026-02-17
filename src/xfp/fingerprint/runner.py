@@ -49,6 +49,19 @@ EXCLUDED_METADATA_COLUMNS = {
     "mask_coverage",
 }
 
+ENDPOINT_MODES = {"upper_bound_gt", "predicted_mask", "mask_free"}
+MASK_DEPENDENT_FEATURES = [
+    "border_abs_sum",
+    "border_signed_sum",
+    "border_pixel_count",
+    "component_count",
+    "component_mean_size",
+    "component_median_size",
+    "component_largest_size",
+    "component_border_fraction",
+    "component_border_mass_fraction",
+]
+
 
 @dataclass
 class FingerprintResult:
@@ -62,16 +75,25 @@ def run_fingerprint_experiment(
     exp_cfg: ExperimentConfig,
     paths_cfg: PathsConfig,
     device: str = "cuda",
+    endpoint_mode: str = "upper_bound_gt",
 ) -> FingerprintResult:
     """Generate attribution fingerprints for configured datasets."""
+    _validate_endpoint_mode(endpoint_mode)
 
     if device.startswith("cuda") and not torch.cuda.is_available():
         print("[xfp] Requested CUDA device but no GPU detected; falling back to CPU.")
         device = "cpu"
     else:
-        print(f"[xfp] Running fingerprint experiment '{exp_cfg.key}' on device: {device}")
+        print(
+            f"[xfp] Running fingerprint experiment '{exp_cfg.key}' "
+            f"on device: {device} (endpoint={endpoint_mode})"
+        )
 
-    fingerprint_dir = paths_cfg.fingerprints_root / exp_cfg.key
+    # Keep historical output layout for upper-bound mode; isolate new deployment-oriented modes.
+    if endpoint_mode == "upper_bound_gt":
+        fingerprint_dir = paths_cfg.fingerprints_root / exp_cfg.key
+    else:
+        fingerprint_dir = paths_cfg.fingerprints_root / endpoint_mode / exp_cfg.key
     fingerprint_dir.mkdir(parents=True, exist_ok=True)
 
     datasets = list(dict.fromkeys([exp_cfg.train_dataset, *exp_cfg.test_datasets]))
@@ -91,6 +113,7 @@ def run_fingerprint_experiment(
             model=model,
             device=device,
             attribution_methods=exp_cfg.attribution_methods or ["integrated_gradients"],
+            endpoint_mode=endpoint_mode,
         )
         output_path = fingerprint_dir / f"{dataset_key}.parquet"
         df.to_parquet(output_path, index=False)
@@ -166,6 +189,7 @@ def _process_dataset(
     model: torch.nn.Module,
     device: str,
     attribution_methods: List[str],
+    endpoint_mode: str,
 ) -> pd.DataFrame:
     cache_dir = cache_root / dataset_key / subset
     metadata_path = cache_dir / "metadata.parquet"
@@ -189,15 +213,11 @@ def _process_dataset(
             model=model,
             device=device,
             attribution_methods=attribution_methods,
+            endpoint_mode=endpoint_mode,
         )
-        sample_metrics.update(
-            {
-                "dataset_key": dataset_key,
-                "subset": subset,
-                "sample_id": row.sample_id,
-                "mask_coverage": float(row.mask_coverage),
-            }
-        )
+        sample_metrics.update({"dataset_key": dataset_key, "subset": subset, "sample_id": row.sample_id})
+        if endpoint_mode == "upper_bound_gt" and hasattr(row, "mask_coverage"):
+            sample_metrics["mask_coverage"] = float(row.mask_coverage)
         for field in metadata_fields:
             value = getattr(row, field)
             if isinstance(value, (np.floating, np.integer)):
@@ -222,10 +242,11 @@ def _compute_sample_metrics(
     model: torch.nn.Module,
     device: str,
     attribution_methods: List[str],
+    endpoint_mode: str,
 ) -> Dict[str, float]:
     data = np.load(cache_file)
     image = data["image"].astype(np.float32)
-    mask = data["mask"].astype(np.uint8)
+    gt_mask = data["mask"].astype(np.uint8) if endpoint_mode == "upper_bound_gt" else None
 
     # CRITICAL FIX: Apply same normalization as training
     # Training used: Normalize(mean=[0.5], std=[0.5])
@@ -240,9 +261,15 @@ def _compute_sample_metrics(
         probs = torch.sigmoid(logits)
 
     prediction = (probs.detach().cpu().numpy()[0, 0] > 0.5).astype(np.uint8)
-    dice = _dice_score(prediction, mask)
-
-    metrics: Dict[str, float] = {"dice": dice}
+    metrics: Dict[str, float] = {
+        "_endpoint_mode": endpoint_mode,
+        "_mask_source": _mask_source(endpoint_mode),
+    }
+    if gt_mask is not None:
+        metrics["dice"] = _dice_score(prediction, gt_mask)
+        metrics["gt_mask_coverage"] = float(gt_mask.mean())
+    if endpoint_mode == "predicted_mask":
+        metrics["predicted_mask_coverage"] = float(prediction.mean())
 
     # Process each attribution method and prefix features by method name
     # Note: First method (index 0) gets no prefix for backward compatibility
@@ -253,7 +280,11 @@ def _compute_sample_metrics(
         # When only one method is used, features are unprefixed
         # When multiple methods: first unprefixed, rest prefixed by method name
         prefix = "" if idx == 0 else f"{_slug(method)}_"
-        metrics.update(_reduce_attribution(attribution, mask, prefix=prefix))
+        if endpoint_mode == "mask_free":
+            metrics.update(_reduce_attribution_mask_free(attribution, prefix=prefix))
+        else:
+            mask = gt_mask if endpoint_mode == "upper_bound_gt" else prediction
+            metrics.update(_reduce_attribution(attribution, mask, prefix=prefix))
 
     # Record which attribution methods were used for traceability
     metrics["_attribution_methods"] = ",".join(attribution_methods)
@@ -341,6 +372,43 @@ def _reduce_attribution(
     return _validate_metrics(metrics)
 
 
+def _reduce_attribution_mask_free(
+    attribution_map: np.ndarray,
+    *,
+    prefix: str,
+) -> Dict[str, float]:
+    """Reduce attribution map without any segmentation mask dependency."""
+    coverage = compute_coverage_curve(attribution_map, mask=None)
+    histogram = compute_histogram_features(
+        attribution_map,
+        bins=HISTOGRAM_BINS,
+        return_distribution=True,
+    )
+
+    def _name(key: str) -> str:
+        return f"{prefix}{key}" if prefix else key
+
+    abs_map = np.abs(attribution_map)
+    mass = float(abs_map.sum())
+    metrics: Dict[str, float] = {
+        _name("attribution_abs_mean"): float(abs_map.mean()),
+        _name("attribution_abs_sum"): mass,
+    }
+    if mass > 0:
+        metrics[_name("attribution_abs_mean_log10")] = float(np.log10(abs_map.mean()))
+        metrics[_name("attribution_abs_sum_log10")] = float(np.log10(mass))
+    else:
+        metrics[_name("attribution_abs_mean_log10")] = -30.0
+        metrics[_name("attribution_abs_sum_log10")] = -30.0
+
+    metrics.update({_name(k): float(v) for k, v in coverage.items()})
+    metrics.update({_name(k): float(v) for k, v in histogram.items()})
+    for feature_key in MASK_DEPENDENT_FEATURES:
+        metrics[_name(feature_key)] = 0.0
+
+    return _validate_metrics(metrics)
+
+
 def _validate_metrics(metrics: Dict[str, float]) -> Dict[str, float]:
     """Validate that all metric values are finite (no NaN or Inf).
 
@@ -371,6 +439,22 @@ def _validate_metrics(metrics: Dict[str, float]) -> Dict[str, float]:
 
 def _slug(method: str) -> str:
     return method.lower().replace(" ", "_")
+
+
+def _mask_source(endpoint_mode: str) -> str:
+    if endpoint_mode == "upper_bound_gt":
+        return "ground_truth"
+    if endpoint_mode == "predicted_mask":
+        return "prediction"
+    return "none"
+
+
+def _validate_endpoint_mode(endpoint_mode: str) -> None:
+    if endpoint_mode not in ENDPOINT_MODES:
+        raise ValueError(
+            f"Unsupported endpoint_mode '{endpoint_mode}'. "
+            f"Expected one of: {sorted(ENDPOINT_MODES)}."
+        )
 
 
 def _dice_score(prediction: np.ndarray, target: np.ndarray, eps: float = 1e-6) -> float:
