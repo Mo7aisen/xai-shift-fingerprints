@@ -130,7 +130,7 @@ fi
 
 COMMIT_HASH="$(git rev-parse --short=12 HEAD 2>/dev/null || echo 'nogit')"
 CONFIG_HASH="$(sha256sum configs/protocol_lock_v1.yaml | awk '{print $1}')"
-INPUT_DATA_HASH="$({ find data/interim/jsrt/pilot5 -maxdepth 1 -type f \( -name '*.npz' -o -name 'metadata.parquet' \) | LC_ALL=C sort | xargs -r sha256sum; } | sha256sum | awk '{print $1}')"
+INPUT_DATA_HASH="$({ find "data/interim/jsrt/${SUBSET}" -maxdepth 1 -type f \( -name '*.npz' -o -name 'metadata.parquet' \) | LC_ALL=C sort | xargs -r sha256sum; } | sha256sum | awk '{print $1}')"
 
 START_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 FINAL_STATUS="failed"
