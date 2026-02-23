@@ -17,6 +17,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compile Gate-4 report.")
     parser.add_argument("--root", type=Path, default=Path("reports_v2/gate4"))
     parser.add_argument("--experiment", default="jsrt_to_montgomery")
+    parser.add_argument("--id-dataset", default="jsrt")
+    parser.add_argument("--ood-dataset", default="montgomery")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--ig-a", type=int, default=16)
     parser.add_argument("--ig-b", type=int, default=32)
@@ -49,10 +51,10 @@ def _numeric_feature_columns(df: pd.DataFrame) -> list[str]:
     return cols
 
 
-def _load_pair(base: Path, endpoint: str, experiment: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _load_pair(base: Path, endpoint: str, experiment: str, id_dataset: str, ood_dataset: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     path = base / endpoint / experiment
-    id_df = pd.read_parquet(path / "jsrt.parquet")
-    ood_df = pd.read_parquet(path / "montgomery.parquet")
+    id_df = pd.read_parquet(path / f"{id_dataset}.parquet")
+    ood_df = pd.read_parquet(path / f"{ood_dataset}.parquet")
     return id_df, ood_df
 
 
@@ -96,8 +98,8 @@ def main() -> None:
     endpoints = {}
     gate_pass = True
     for endpoint in args.endpoints:
-        id_a, ood_a = _load_pair(artifacts_a, endpoint, args.experiment)
-        id_b, ood_b = _load_pair(artifacts_b, endpoint, args.experiment)
+        id_a, ood_a = _load_pair(artifacts_a, endpoint, args.experiment, args.id_dataset, args.ood_dataset)
+        id_b, ood_b = _load_pair(artifacts_b, endpoint, args.experiment, args.id_dataset, args.ood_dataset)
 
         score_id_a, score_ood_a, top20 = _scores_and_topk(id_a, ood_a, top_k=20)
         score_id_b, score_ood_b, _ = _scores_and_topk(id_b, ood_b, top_k=20)
@@ -140,6 +142,8 @@ def main() -> None:
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "seed": args.seed,
         "experiment": args.experiment,
+        "id_dataset": args.id_dataset,
+        "ood_dataset": args.ood_dataset,
         "ig_steps_compare": [args.ig_a, args.ig_b],
         "thresholds": {
             "max_ig_delta": args.max_ig_delta,
@@ -158,6 +162,8 @@ def main() -> None:
         "",
         f"- Generated UTC: `{summary['generated_utc']}`",
         f"- Experiment: `{args.experiment}`",
+        f"- ID dataset: `{args.id_dataset}`",
+        f"- OOD dataset: `{args.ood_dataset}`",
         f"- Seed: `{args.seed}`",
         f"- IG compare: `{args.ig_a} vs {args.ig_b}`",
         "",

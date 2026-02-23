@@ -78,6 +78,70 @@ experiments:
     subset: full
     notes: "Shift detection (reverse): Shenzhen model tested on Montgomery data (appendix)"
 
+  # HARDER-SHIFT PREPROCESSING HETEROGENEITY (same-source dataset, patient-disjoint aliases)
+  # Generated via: scripts/robustness_perturbations.py --mode alias_builder
+  # The train_dataset stays `shenzhen` so checkpoint routing remains unchanged; the cache root/subset
+  # is overridden during pilot/confirmatory runs to point at alias caches.
+  shenzhen_to_shenzhen_pp_gamma085:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_gamma085]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): gamma=0.85"
+
+  shenzhen_to_shenzhen_pp_gamma115:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_gamma115]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): gamma=1.15"
+
+  shenzhen_to_shenzhen_pp_clahe15:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_clahe15]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): CLAHE clipLimit=1.5 tile=8"
+
+  shenzhen_to_shenzhen_pp_clahe30:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_clahe30]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): CLAHE clipLimit=3.0 tile=8"
+
+  shenzhen_to_shenzhen_pp_jpeg90:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_jpeg90]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): JPEG quality=90"
+
+  shenzhen_to_shenzhen_pp_jpeg70:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_jpeg70]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): JPEG quality=70"
+
+  shenzhen_to_shenzhen_pp_downup448:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_downup448]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): resize 512->448->512"
+
+  shenzhen_to_shenzhen_pp_downup320:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_downup320]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): resize 512->320->512"
+
+  shenzhen_to_shenzhen_pp_quant6:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_quant6]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): quantization 6-bit"
+
+  shenzhen_to_shenzhen_pp_quant4:
+    train_dataset: shenzhen
+    test_datasets: [shenzhen_pp_quant4]
+    subset: hardshift_pilot
+    notes: "Harder shift (same-dataset preprocessing alias): quantization 4-bit"
+
   # NIH CHESTXRAY14 (External validation roadmap)
   nih_baseline:
     train_dataset: nih_chestxray14
