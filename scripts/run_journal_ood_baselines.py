@@ -20,6 +20,14 @@ import pandas as pd
 import yaml
 
 
+MODEL_KEY_BY_TRAIN_DATASET = {
+    "jsrt": "unet_jsrt_full",
+    "montgomery": "unet_montgomery_full",
+    "shenzhen": "unet_shenzhen_full",
+    "nih_chestxray14": "unet_nih_full",
+}
+
+
 def parse_args() -> argparse.Namespace:
     repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description="Run OOD baseline suite for one experiment.")
@@ -41,6 +49,16 @@ def _load_experiment(experiments_path: Path, experiment: str) -> tuple[str, str]
     if len(tests) != 1:
         raise ValueError(f"Expected exactly one test dataset for '{experiment}', got: {tests}")
     return train, str(tests[0])
+
+
+def _infer_unet_model_key(train_dataset: str) -> str:
+    key = MODEL_KEY_BY_TRAIN_DATASET.get(train_dataset)
+    if key is None:
+        raise KeyError(
+            f"No UNet model-key mapping configured for train dataset '{train_dataset}'. "
+            "Update MODEL_KEY_BY_TRAIN_DATASET in scripts/run_journal_ood_baselines.py."
+        )
+    return key
 
 
 def _run(cmd: list[str], cwd: Path) -> None:
@@ -73,6 +91,7 @@ def main() -> None:
     in_datasets_arg = id_dataset
     scope = f"{id_dataset} vs {ood_dataset}"
 
+    model_key = _infer_unet_model_key(id_dataset)
     out_dir = args.output_dir / f"{args.experiment}_{args.subset}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -107,6 +126,8 @@ def main() -> None:
             "scripts/run_energy_ood_baseline.py",
             "--batch-size",
             str(max(1, args.batch_size // 2)),
+            "--model-key",
+            model_key,
             *common_args,
         ],
         cwd=repo_root,
