@@ -14,12 +14,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from sklearn.metrics import roc_auc_score
 
 from xfp.config import load_paths_config
 from xfp.models.loader import load_unet_checkpoint
+from xfp.utils.ood_eval import binary_ood_metrics_with_bootstrap
 
 
 class CachedImageDataset(Dataset):
@@ -38,21 +37,6 @@ class CachedImageDataset(Dataset):
         image = data["image"].astype(np.float32)
         sample_id = path.stem
         return image, sample_id
-
-
-def _bootstrap_auc(labels: np.ndarray, scores: np.ndarray, n_boot: int = 500, seed: int = 42):
-    rng = np.random.default_rng(seed)
-    n = labels.size
-    boot = []
-    for _ in range(n_boot):
-        idx = rng.integers(0, n, size=n)
-        if len(np.unique(labels[idx])) < 2:
-            continue
-        boot.append(roc_auc_score(labels[idx], scores[idx]))
-    if not boot:
-        return float("nan"), float("nan")
-    ci_low, ci_high = np.percentile(boot, [2.5, 97.5])
-    return float(ci_low), float(ci_high)
 
 
 def parse_args() -> argparse.Namespace:
@@ -170,44 +154,91 @@ def main() -> None:
     msp_scores = np.asarray(msp_scores, dtype=float)
     maxlogit_scores = np.asarray(maxlogit_scores, dtype=float)
 
-    entropy_auc = roc_auc_score(labels, entropy_scores)
-    msp_auc = roc_auc_score(labels, msp_scores)
-    maxlogit_auc = roc_auc_score(labels, maxlogit_scores)
-    entropy_ci = _bootstrap_auc(labels, entropy_scores)
-    msp_ci = _bootstrap_auc(labels, msp_scores)
-    maxlogit_ci = _bootstrap_auc(labels, maxlogit_scores)
+    entropy_metrics = binary_ood_metrics_with_bootstrap(labels, entropy_scores, n_boot=500, seed=42)
+    msp_metrics = binary_ood_metrics_with_bootstrap(labels, msp_scores, n_boot=500, seed=43)
+    maxlogit_metrics = binary_ood_metrics_with_bootstrap(labels, maxlogit_scores, n_boot=500, seed=44)
 
     with auc_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(
             fh,
-            fieldnames=["scope", "metric", "auc", "ci_low", "ci_high"],
+            fieldnames=[
+                "scope",
+                "metric",
+                "auc",
+                "ci_low",
+                "ci_high",
+                "aupr",
+                "aupr_ci_low",
+                "aupr_ci_high",
+                "fpr95",
+                "fpr95_ci_low",
+                "fpr95_ci_high",
+                "tpr_at_fpr05",
+                "tpr_at_fpr05_ci_low",
+                "tpr_at_fpr05_ci_high",
+                "ece",
+                "brier",
+            ],
         )
         writer.writeheader()
         writer.writerow(
             {
                 "scope": "overall",
                 "metric": "entropy",
-                "auc": entropy_auc,
-                "ci_low": entropy_ci[0],
-                "ci_high": entropy_ci[1],
+                "auc": entropy_metrics["auc"],
+                "ci_low": entropy_metrics["auc_ci_low"],
+                "ci_high": entropy_metrics["auc_ci_high"],
+                "aupr": entropy_metrics["aupr"],
+                "aupr_ci_low": entropy_metrics["aupr_ci_low"],
+                "aupr_ci_high": entropy_metrics["aupr_ci_high"],
+                "fpr95": entropy_metrics["fpr95"],
+                "fpr95_ci_low": entropy_metrics["fpr95_ci_low"],
+                "fpr95_ci_high": entropy_metrics["fpr95_ci_high"],
+                "tpr_at_fpr05": entropy_metrics["tpr_at_fpr05"],
+                "tpr_at_fpr05_ci_low": entropy_metrics["tpr_at_fpr05_ci_low"],
+                "tpr_at_fpr05_ci_high": entropy_metrics["tpr_at_fpr05_ci_high"],
+                "ece": entropy_metrics["ece"],
+                "brier": entropy_metrics["brier"],
             }
         )
         writer.writerow(
             {
                 "scope": "overall",
                 "metric": "msp",
-                "auc": msp_auc,
-                "ci_low": msp_ci[0],
-                "ci_high": msp_ci[1],
+                "auc": msp_metrics["auc"],
+                "ci_low": msp_metrics["auc_ci_low"],
+                "ci_high": msp_metrics["auc_ci_high"],
+                "aupr": msp_metrics["aupr"],
+                "aupr_ci_low": msp_metrics["aupr_ci_low"],
+                "aupr_ci_high": msp_metrics["aupr_ci_high"],
+                "fpr95": msp_metrics["fpr95"],
+                "fpr95_ci_low": msp_metrics["fpr95_ci_low"],
+                "fpr95_ci_high": msp_metrics["fpr95_ci_high"],
+                "tpr_at_fpr05": msp_metrics["tpr_at_fpr05"],
+                "tpr_at_fpr05_ci_low": msp_metrics["tpr_at_fpr05_ci_low"],
+                "tpr_at_fpr05_ci_high": msp_metrics["tpr_at_fpr05_ci_high"],
+                "ece": msp_metrics["ece"],
+                "brier": msp_metrics["brier"],
             }
         )
         writer.writerow(
             {
                 "scope": "overall",
                 "metric": "maxlogit",
-                "auc": maxlogit_auc,
-                "ci_low": maxlogit_ci[0],
-                "ci_high": maxlogit_ci[1],
+                "auc": maxlogit_metrics["auc"],
+                "ci_low": maxlogit_metrics["auc_ci_low"],
+                "ci_high": maxlogit_metrics["auc_ci_high"],
+                "aupr": maxlogit_metrics["aupr"],
+                "aupr_ci_low": maxlogit_metrics["aupr_ci_low"],
+                "aupr_ci_high": maxlogit_metrics["aupr_ci_high"],
+                "fpr95": maxlogit_metrics["fpr95"],
+                "fpr95_ci_low": maxlogit_metrics["fpr95_ci_low"],
+                "fpr95_ci_high": maxlogit_metrics["fpr95_ci_high"],
+                "tpr_at_fpr05": maxlogit_metrics["tpr_at_fpr05"],
+                "tpr_at_fpr05_ci_low": maxlogit_metrics["tpr_at_fpr05_ci_low"],
+                "tpr_at_fpr05_ci_high": maxlogit_metrics["tpr_at_fpr05_ci_high"],
+                "ece": maxlogit_metrics["ece"],
+                "brier": maxlogit_metrics["brier"],
             }
         )
 
@@ -233,15 +264,25 @@ def main() -> None:
                 [np.zeros(in_entropy.size, dtype=int), np.ones(out_entropy.size, dtype=int)]
             )
             scores_ds = np.concatenate([in_entropy, out_entropy])
-            auc_ds = roc_auc_score(labels_ds, scores_ds)
-            ci_ds = _bootstrap_auc(labels_ds, scores_ds)
+            metrics_ds = binary_ood_metrics_with_bootstrap(labels_ds, scores_ds, n_boot=500, seed=100)
             writer.writerow(
                 {
                     "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
                     "metric": "entropy",
-                    "auc": auc_ds,
-                    "ci_low": ci_ds[0],
-                    "ci_high": ci_ds[1],
+                    "auc": metrics_ds["auc"],
+                    "ci_low": metrics_ds["auc_ci_low"],
+                    "ci_high": metrics_ds["auc_ci_high"],
+                    "aupr": metrics_ds["aupr"],
+                    "aupr_ci_low": metrics_ds["aupr_ci_low"],
+                    "aupr_ci_high": metrics_ds["aupr_ci_high"],
+                    "fpr95": metrics_ds["fpr95"],
+                    "fpr95_ci_low": metrics_ds["fpr95_ci_low"],
+                    "fpr95_ci_high": metrics_ds["fpr95_ci_high"],
+                    "tpr_at_fpr05": metrics_ds["tpr_at_fpr05"],
+                    "tpr_at_fpr05_ci_low": metrics_ds["tpr_at_fpr05_ci_low"],
+                    "tpr_at_fpr05_ci_high": metrics_ds["tpr_at_fpr05_ci_high"],
+                    "ece": metrics_ds["ece"],
+                    "brier": metrics_ds["brier"],
                 }
             )
 
@@ -249,15 +290,25 @@ def main() -> None:
                 [np.zeros(in_msp.size, dtype=int), np.ones(out_msp.size, dtype=int)]
             )
             scores_ds = np.concatenate([in_msp, out_msp])
-            auc_ds = roc_auc_score(labels_ds, scores_ds)
-            ci_ds = _bootstrap_auc(labels_ds, scores_ds)
+            metrics_ds = binary_ood_metrics_with_bootstrap(labels_ds, scores_ds, n_boot=500, seed=101)
             writer.writerow(
                 {
                     "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
                     "metric": "msp",
-                    "auc": auc_ds,
-                    "ci_low": ci_ds[0],
-                    "ci_high": ci_ds[1],
+                    "auc": metrics_ds["auc"],
+                    "ci_low": metrics_ds["auc_ci_low"],
+                    "ci_high": metrics_ds["auc_ci_high"],
+                    "aupr": metrics_ds["aupr"],
+                    "aupr_ci_low": metrics_ds["aupr_ci_low"],
+                    "aupr_ci_high": metrics_ds["aupr_ci_high"],
+                    "fpr95": metrics_ds["fpr95"],
+                    "fpr95_ci_low": metrics_ds["fpr95_ci_low"],
+                    "fpr95_ci_high": metrics_ds["fpr95_ci_high"],
+                    "tpr_at_fpr05": metrics_ds["tpr_at_fpr05"],
+                    "tpr_at_fpr05_ci_low": metrics_ds["tpr_at_fpr05_ci_low"],
+                    "tpr_at_fpr05_ci_high": metrics_ds["tpr_at_fpr05_ci_high"],
+                    "ece": metrics_ds["ece"],
+                    "brier": metrics_ds["brier"],
                 }
             )
 
@@ -266,15 +317,25 @@ def main() -> None:
                 [np.zeros(in_maxlogit.size, dtype=int), np.ones(out_maxlogit.size, dtype=int)]
             )
             scores_ds = np.concatenate([in_maxlogit, out_maxlogit])
-            auc_ds = roc_auc_score(labels_ds, scores_ds)
-            ci_ds = _bootstrap_auc(labels_ds, scores_ds)
+            metrics_ds = binary_ood_metrics_with_bootstrap(labels_ds, scores_ds, n_boot=500, seed=102)
             writer.writerow(
                 {
                     "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
                     "metric": "maxlogit",
-                    "auc": auc_ds,
-                    "ci_low": ci_ds[0],
-                    "ci_high": ci_ds[1],
+                    "auc": metrics_ds["auc"],
+                    "ci_low": metrics_ds["auc_ci_low"],
+                    "ci_high": metrics_ds["auc_ci_high"],
+                    "aupr": metrics_ds["aupr"],
+                    "aupr_ci_low": metrics_ds["aupr_ci_low"],
+                    "aupr_ci_high": metrics_ds["aupr_ci_high"],
+                    "fpr95": metrics_ds["fpr95"],
+                    "fpr95_ci_low": metrics_ds["fpr95_ci_low"],
+                    "fpr95_ci_high": metrics_ds["fpr95_ci_high"],
+                    "tpr_at_fpr05": metrics_ds["tpr_at_fpr05"],
+                    "tpr_at_fpr05_ci_low": metrics_ds["tpr_at_fpr05_ci_low"],
+                    "tpr_at_fpr05_ci_high": metrics_ds["tpr_at_fpr05_ci_high"],
+                    "ece": metrics_ds["ece"],
+                    "brier": metrics_ds["brier"],
                 }
             )
 

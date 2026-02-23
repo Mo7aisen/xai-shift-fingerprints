@@ -1,0 +1,11 @@
+variant_tag=jsrt_unet_bce_dice_f24_48_96_192_seed314159
+variant_model_path=/storage/xai_cxr_safety/models/jsrt_unet_bce_dice_f24_48_96_192_seed314159.pt
+variant_fingerprint_root=/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/data/fingerprints_model_variants/jsrt_unet_bce_dice_f24_48_96_192_seed314159
+experiment=jsrt_to_montgomery
+features=24,48,96,192
+loss=bce_dice
+seed=314159
+epochs=50
+batch_size=8
+num_workers=4
+ig_steps=16

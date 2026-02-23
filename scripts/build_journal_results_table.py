@@ -65,17 +65,24 @@ def main() -> None:
             f"{row['ece_mean']:.4f} | {row['brier_mean']:.4f} | {row['pearson_all_mean']:.4f} | {row['spearman_all_mean']:.4f} |"
         )
 
-    lines.extend(
-        [
-            "",
-            "## OOD Baselines",
-            "",
-            "| Method | AUROC | 95% CI |",
-            "|---|---:|---|",
-        ]
-    )
-    for _, row in base.iterrows():
-        lines.append(f"| {row['method']} | {row['auc']:.4f} | [{row['ci_low']:.4f}, {row['ci_high']:.4f}] |")
+    lines.extend(["", "## OOD Baselines", ""])
+    has_extended = all(col in base.columns for col in ["aupr", "fpr95", "tpr_at_fpr05", "ece", "brier"])
+    if has_extended:
+        lines.extend(
+            [
+                "| Method | AUROC | AUPR | FPR95 | TPR@5%FPR | ECE | Brier |",
+                "|---|---:|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for _, row in base.iterrows():
+            lines.append(
+                f"| {row['method']} | {row['auc']:.4f} | {row['aupr']:.4f} | {row['fpr95']:.4f} | "
+                f"{row['tpr_at_fpr05']:.4f} | {row['ece']:.4f} | {row['brier']:.4f} |"
+            )
+    else:
+        lines.extend(["| Method | AUROC | 95% CI |", "|---|---:|---|"])
+        for _, row in base.iterrows():
+            lines.append(f"| {row['method']} | {row['auc']:.4f} | [{row['ci_low']:.4f}, {row['ci_high']:.4f}] |")
 
     lines.extend(["", f"- CSV: `{args.out_csv}`", f"- Baselines source: `{args.baseline_csv}`"])
     args.out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")

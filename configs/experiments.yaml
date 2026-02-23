@@ -64,6 +64,20 @@ experiments:
     subset: full
     notes: "Shift detection: Montgomery model tested on Shenzhen data (appendix)"
 
+  shenzhen_to_jsrt:
+    train_dataset: shenzhen
+    test_datasets:
+      - jsrt
+    subset: full
+    notes: "Shift detection (reverse): Shenzhen model tested on JSRT data (appendix)"
+
+  shenzhen_to_montgomery:
+    train_dataset: shenzhen
+    test_datasets:
+      - montgomery
+    subset: full
+    notes: "Shift detection (reverse): Shenzhen model tested on Montgomery data (appendix)"
+
   # NIH CHESTXRAY14 (External validation roadmap)
   nih_baseline:
     train_dataset: nih_chestxray14

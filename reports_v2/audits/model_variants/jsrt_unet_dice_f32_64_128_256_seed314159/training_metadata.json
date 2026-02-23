@@ -1,0 +1,17 @@
+{
+  "cache_dir": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/data/interim/jsrt/full",
+  "epochs": 50,
+  "batch_size": 8,
+  "lr": 0.001,
+  "seed": 314159,
+  "train_ratio": 0.8,
+  "loss": "dice",
+  "features": [
+    32,
+    64,
+    128,
+    256
+  ],
+  "best_val_loss": 0.018980557821234877,
+  "checkpoint": "/storage/xai_cxr_safety/models/jsrt_unet_dice_f32_64_128_256_seed314159.pt"
+}

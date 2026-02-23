@@ -56,6 +56,14 @@ def _select_scope(df: pd.DataFrame, scope: str) -> pd.DataFrame:
     return df.copy()
 
 
+def _maybe_float(row: pd.Series, key: str) -> float:
+    value = row.get(key, float("nan"))
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
 def main() -> None:
     args = parse_args()
     repo_root = Path(__file__).resolve().parents[1]
@@ -121,6 +129,17 @@ def main() -> None:
             "auc": float(resnet_row["auc"]),
             "ci_low": float(resnet_row["ci_low"]),
             "ci_high": float(resnet_row["ci_high"]),
+            "aupr": _maybe_float(resnet_row, "aupr"),
+            "aupr_ci_low": _maybe_float(resnet_row, "aupr_ci_low"),
+            "aupr_ci_high": _maybe_float(resnet_row, "aupr_ci_high"),
+            "fpr95": _maybe_float(resnet_row, "fpr95"),
+            "fpr95_ci_low": _maybe_float(resnet_row, "fpr95_ci_low"),
+            "fpr95_ci_high": _maybe_float(resnet_row, "fpr95_ci_high"),
+            "tpr_at_fpr05": _maybe_float(resnet_row, "tpr_at_fpr05"),
+            "tpr_at_fpr05_ci_low": _maybe_float(resnet_row, "tpr_at_fpr05_ci_low"),
+            "tpr_at_fpr05_ci_high": _maybe_float(resnet_row, "tpr_at_fpr05_ci_high"),
+            "ece": _maybe_float(resnet_row, "ece"),
+            "brier": _maybe_float(resnet_row, "brier"),
         }
     ]
 
@@ -145,6 +164,17 @@ def main() -> None:
                 "auc": float(row["auc"]),
                 "ci_low": float(row["ci_low"]),
                 "ci_high": float(row["ci_high"]),
+                "aupr": _maybe_float(row, "aupr"),
+                "aupr_ci_low": _maybe_float(row, "aupr_ci_low"),
+                "aupr_ci_high": _maybe_float(row, "aupr_ci_high"),
+                "fpr95": _maybe_float(row, "fpr95"),
+                "fpr95_ci_low": _maybe_float(row, "fpr95_ci_low"),
+                "fpr95_ci_high": _maybe_float(row, "fpr95_ci_high"),
+                "tpr_at_fpr05": _maybe_float(row, "tpr_at_fpr05"),
+                "tpr_at_fpr05_ci_low": _maybe_float(row, "tpr_at_fpr05_ci_low"),
+                "tpr_at_fpr05_ci_high": _maybe_float(row, "tpr_at_fpr05_ci_high"),
+                "ece": _maybe_float(row, "ece"),
+                "brier": _maybe_float(row, "brier"),
             }
         )
 
@@ -162,6 +192,17 @@ def main() -> None:
                 "auc",
                 "ci_low",
                 "ci_high",
+                "aupr",
+                "aupr_ci_low",
+                "aupr_ci_high",
+                "fpr95",
+                "fpr95_ci_low",
+                "fpr95_ci_high",
+                "tpr_at_fpr05",
+                "tpr_at_fpr05_ci_low",
+                "tpr_at_fpr05_ci_high",
+                "ece",
+                "brier",
             ],
         )
         writer.writeheader()
@@ -177,12 +218,13 @@ def main() -> None:
         f"- OOD dataset: `{ood_dataset}`",
         f"- Subset: `{args.subset}`",
         "",
-        "| Method | AUROC | 95% CI |",
-        "|---|---:|---|",
+        "| Method | AUROC | AUPR | FPR95 | TPR@5%FPR | ECE | Brier |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in baseline_rows:
         lines.append(
-            f"| {row['method']} | {row['auc']:.4f} | [{row['ci_low']:.4f}, {row['ci_high']:.4f}] |"
+            f"| {row['method']} | {row['auc']:.4f} | {row['aupr']:.4f} | {row['fpr95']:.4f} | "
+            f"{row['tpr_at_fpr05']:.4f} | {row['ece']:.4f} | {row['brier']:.4f} |"
         )
     lines.extend(["", f"- CSV: `{summary_csv}`"])
     summary_md.write_text("\n".join(lines) + "\n", encoding="utf-8")

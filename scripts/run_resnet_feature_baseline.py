@@ -20,9 +20,9 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models
 from torchvision.models import ResNet50_Weights
-from sklearn.metrics import roc_auc_score
 
 from xfp.config import load_paths_config
+from xfp.utils.ood_eval import binary_ood_metrics_with_bootstrap
 
 
 class CachedImageDataset(Dataset):
@@ -98,21 +98,6 @@ def _mahalanobis_scores(
             scores.extend(score.detach().cpu().numpy().tolist())
             ids.extend(sample_ids)
     return scores, ids
-
-
-def _bootstrap_auc(labels: np.ndarray, scores: np.ndarray, n_boot: int = 500, seed: int = 42):
-    rng = np.random.default_rng(seed)
-    n = labels.size
-    boot = []
-    for _ in range(n_boot):
-        idx = rng.integers(0, n, size=n)
-        if len(np.unique(labels[idx])) < 2:
-            continue
-        boot.append(roc_auc_score(labels[idx], scores[idx]))
-    if not boot:
-        return float("nan"), float("nan")
-    ci_low, ci_high = np.percentile(boot, [2.5, 97.5])
-    return float(ci_low), float(ci_high)
 
 
 def parse_args() -> argparse.Namespace:
@@ -210,13 +195,49 @@ def main() -> None:
     # AUC summary
     all_scores = np.asarray(all_scores, dtype=float)
     all_labels = np.asarray(all_labels, dtype=int)
-    auc = roc_auc_score(all_labels, all_scores)
-    ci_low, ci_high = _bootstrap_auc(all_labels, all_scores)
+    overall = binary_ood_metrics_with_bootstrap(all_labels, all_scores, n_boot=500, seed=42)
 
     with auc_path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=["scope", "auc", "ci_low", "ci_high"])
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=[
+                "scope",
+                "auc",
+                "ci_low",
+                "ci_high",
+                "aupr",
+                "aupr_ci_low",
+                "aupr_ci_high",
+                "fpr95",
+                "fpr95_ci_low",
+                "fpr95_ci_high",
+                "tpr_at_fpr05",
+                "tpr_at_fpr05_ci_low",
+                "tpr_at_fpr05_ci_high",
+                "ece",
+                "brier",
+            ],
+        )
         writer.writeheader()
-        writer.writerow({"scope": "overall", "auc": auc, "ci_low": ci_low, "ci_high": ci_high})
+        writer.writerow(
+            {
+                "scope": "overall",
+                "auc": overall["auc"],
+                "ci_low": overall["auc_ci_low"],
+                "ci_high": overall["auc_ci_high"],
+                "aupr": overall["aupr"],
+                "aupr_ci_low": overall["aupr_ci_low"],
+                "aupr_ci_high": overall["aupr_ci_high"],
+                "fpr95": overall["fpr95"],
+                "fpr95_ci_low": overall["fpr95_ci_low"],
+                "fpr95_ci_high": overall["fpr95_ci_high"],
+                "tpr_at_fpr05": overall["tpr_at_fpr05"],
+                "tpr_at_fpr05_ci_low": overall["tpr_at_fpr05_ci_low"],
+                "tpr_at_fpr05_ci_high": overall["tpr_at_fpr05_ci_high"],
+                "ece": overall["ece"],
+                "brier": overall["brier"],
+            }
+        )
 
         # Per-out dataset AUCs
         in_scores = np.concatenate(
@@ -232,14 +253,24 @@ def main() -> None:
             ds_labels = np.concatenate(
                 [np.zeros(in_scores.size, dtype=int), np.ones(out_scores.size, dtype=int)]
             )
-            ds_auc = roc_auc_score(ds_labels, ds_scores)
-            ds_ci_low, ds_ci_high = _bootstrap_auc(ds_labels, ds_scores)
+            ds_metrics = binary_ood_metrics_with_bootstrap(ds_labels, ds_scores, n_boot=500, seed=100)
             writer.writerow(
                 {
                     "scope": f"{'+'.join(sorted(in_dist))} vs {ds}",
-                    "auc": ds_auc,
-                    "ci_low": ds_ci_low,
-                    "ci_high": ds_ci_high,
+                    "auc": ds_metrics["auc"],
+                    "ci_low": ds_metrics["auc_ci_low"],
+                    "ci_high": ds_metrics["auc_ci_high"],
+                    "aupr": ds_metrics["aupr"],
+                    "aupr_ci_low": ds_metrics["aupr_ci_low"],
+                    "aupr_ci_high": ds_metrics["aupr_ci_high"],
+                    "fpr95": ds_metrics["fpr95"],
+                    "fpr95_ci_low": ds_metrics["fpr95_ci_low"],
+                    "fpr95_ci_high": ds_metrics["fpr95_ci_high"],
+                    "tpr_at_fpr05": ds_metrics["tpr_at_fpr05"],
+                    "tpr_at_fpr05_ci_low": ds_metrics["tpr_at_fpr05_ci_low"],
+                    "tpr_at_fpr05_ci_high": ds_metrics["tpr_at_fpr05_ci_high"],
+                    "ece": ds_metrics["ece"],
+                    "brier": ds_metrics["brier"],
                 }
             )
 
