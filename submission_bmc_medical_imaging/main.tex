@@ -1,4 +1,4 @@
-\documentclass[pdflatex,sn-vancouver-num]{sn-jnl}
+\documentclass[referee,lineno,pdflatex,sn-vancouver-num]{sn-jnl}
 
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -10,14 +10,14 @@
 
 \begin{document}
 
-\title[Validation-Locked Attribution Fingerprints for CXR Shift Monitoring]{Validation-Locked Attribution Fingerprints for Robust Domain-Shift Monitoring in Chest X-ray Segmentation}
+\title[Validation-Locked Attribution Fingerprints for CXR Shift Monitoring]{Validation-Locked Attribution Fingerprints for Auditable Domain-Shift Monitoring in Chest X-ray Segmentation}
 
 \author*[1]{\fnm{Mohammed} \sur{Mohaisen}}\email{mohammed.mohaisen@edu.bme.hu}
 \author[1]{\fnm{G\'abor} \sur{Hull\'am}}\email{gabor.hullam@mit.bme.hu}
 
 \affil*[1]{\orgdiv{Department of Artificial Intelligence and Systems Engineering}, \orgname{Budapest University of Technology and Economics}, \orgaddress{\city{Budapest}, \country{Hungary}}}
 
-\abstract{We present a validation-locked attribution-fingerprinting framework for detecting and characterizing clinically relevant domain shift in chest X-ray segmentation. The primary evidence is a 20-seed Phase 1 Extended bidirectional evaluation on JSRT and Shenzhen, where endpoint-specific behavior is materially different. The mask-free endpoint achieves the strongest reverse-direction operating profile (AUROC 0.9905, 95\% CI 0.9849 to 0.9953; FPR95 0.0389; perturbation degradation 2.03\%; Gate-5 clinical PASS), whereas the predicted-mask endpoint attains high discrimination (AUROC up to 0.9944) but remains too fragile under robustness stress testing. We further ran a predeclared hardshift extension in the Shenzhen setting under frozen governance. Both promoted candidates failed Gate-3 validation because post-hoc power remained below the required threshold, so this branch is reported as an honest negative result rather than a positive deployment claim. Overall, the data support constrained deployment of the mask-free endpoint, show the value of 20-seed validation-locked auditing for reviewer-traceable model assessment, and define a current boundary of the method in the harder hardshift setting.}
+\abstract{\textbf{Background:} We present a validation-locked attribution-fingerprinting framework for detecting and characterizing clinically relevant domain shift in chest X-ray segmentation. The goal is to make deployment claims reviewer-traceable by separating discrimination, robustness, and clinical linkage into explicit acceptance gates. \textbf{Methods:} The primary evidence is a 20-seed Phase 1 Extended bidirectional evaluation on JSRT and Shenzhen, with endpoint-specific assessment for predicted-mask and mask-free operating modes. We additionally executed a predeclared hardshift extension in the Shenzhen setting under frozen governance and unchanged decision thresholds. \textbf{Results:} The mask-free endpoint achieved the strongest reverse-direction operating profile (AUROC 0.9905, 95\% CI 0.9849 to 0.9953; FPR95 0.0389; perturbation degradation 2.03\%; Gate-5 clinical PASS), whereas the predicted-mask endpoint reached high discrimination (AUROC up to 0.9944) but remained too fragile under robustness stress testing. In the hardshift extension, both promoted candidates failed Gate 3 because post-hoc power remained below the required threshold. \textbf{Conclusions:} The data support constrained deployment of the mask-free endpoint, demonstrate the value of 20-seed validation-locked auditing for model assessment, and define a current boundary of the method in the harder Shenzhen hardshift setting through an explicitly documented negative-result branch.}
 
 \keywords{chest X-ray, domain shift, out-of-distribution detection, explainable AI, robustness, auditability}
 
@@ -112,7 +112,7 @@ Gate-5 overall & FAIL & PASS & --- & --- \\
 The direction effect is endpoint-specific. Reverse direction improves discrimination for both endpoints, but robustness behavior diverges: mask-free improves substantially under reverse perturbation testing, while predicted-mask becomes more fragile. This confirms that endpoint choice materially changes deployment suitability even when aggregate discrimination appears high.
 
 \subsection{Attempted hardshift extension (negative result)}
-We executed a governance-locked hardshift extension in the Shenzhen setting after the primary analysis. Two promoted candidates (\texttt{gamma085} and \texttt{jpeg90}) were evaluated sequentially under unchanged Gate-3 criteria. Both failed because post-hoc power remained below the required threshold of 0.80 for both endpoints, and no candidate was advanced to the next validation stage.
+We executed a governance-locked hardshift extension in the Shenzhen setting after the primary analysis. Two promoted candidates (\texttt{gamma085} and \texttt{jpeg90}) were evaluated sequentially under unchanged Gate-3 criteria. Both failed because post-hoc power remained below the required threshold of 0.80 for both endpoints, and no candidate was advanced to the next validation stage. The full reviewer-traceable audit trail for this branch is provided in Additional files 1 to 3.
 
 \begin{table}[t]
 \caption{Reviewer-traceable summary of the attempted hardshift extension. Both candidates failed Gate 3 and are retained as negative-result evidence only.}
@@ -227,10 +227,10 @@ Not applicable. All analyses were performed on publicly available de-identified 
 Not applicable.
 
 \subsection*{Availability of data and materials}
-JSRT and Shenzhen are publicly available from their official sources. The generated audit artifacts, governance summaries, and reviewer-traceable freeze manifests used in this study are included in the supplementary review package accompanying this manuscript.
+JSRT and Shenzhen are publicly available from their official sources. Derived audit artifacts, governance summaries, and reviewer-traceable freeze manifests that support the negative-result hardshift branch are provided in Additional files 1 to 3. A repository-orientation note for reviewers is provided in Additional file 4.
 
 \subsection*{Code availability}
-All source code, configurations, analysis scripts, governance manifests, and reproducibility assets are available in the project repository: \url{https://github.com/Mo7aisen/xai-shift-fingerprints}. The active repository is already configured as the canonical project remote used for this manuscript package. A DOI-backed archive snapshot will be minted upon acceptance. The repository contains the exact validation-locked 20-seed primary pipeline used for the main study and the negative-result hardshift extension documented here.
+All source code, configurations, analysis scripts, governance manifests, and reproducibility assets are available in the public project repository: \url{https://github.com/Mo7aisen/xai-shift-fingerprints}. The submission-aligned repository state corresponds to commit \texttt{55f9ebd} on the public \texttt{main} branch (2026-02-28). The repository contains the exact validation-locked 20-seed primary pipeline used for the main study and the negative-result hardshift extension documented here. A DOI-backed archive snapshot will be minted upon acceptance.
 
 \subsection*{Competing interests}
 The authors declare that they have no competing interests.
@@ -243,6 +243,15 @@ Mohammed Mohaisen: conceptualization, methodology, software, formal analysis, in
 
 \subsection*{Acknowledgements}
 We thank the public dataset providers. On behalf of the XAI Shift Fingerprints project, we also acknowledge HUN-REN Cloud for the computational resources used to execute the reproducibility and validation workloads reported in this study.
+
+\section*{Additional files}
+\textbf{Additional file 1.} Hardshift final verification report (\url{HARDSHIFT_PROJECT_FINAL_VERIFICATION_2026-02-28.md}). This file summarizes the closure state of the hardshift branch and the preserved reviewer-traceable evidence set.
+
+\textbf{Additional file 2.} Hardshift final freeze manifest (\url{hardshift_project_final_freeze_2026-02-28.sha256}). This file contains checksums for the preserved project artifacts used in the submission package.
+
+\textbf{Additional file 3.} Hardshift submission bundle index (\url{hardshift_project_submission_bundle_2026-02-28.md}). This file provides the reviewer-facing bundle index for the hardshift governance and audit trail.
+
+\textbf{Additional file 4.} Repository access and reproducibility note (\url{REPOSITORY_ACCESS_AND_REPRODUCIBILITY.md}). This file describes the public code location and the expected reproducibility layout for reviewers.
 
 \bibliography{references}
 
