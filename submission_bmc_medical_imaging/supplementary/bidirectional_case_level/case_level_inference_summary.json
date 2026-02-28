@@ -1,0 +1,24 @@
+{
+  "config": {
+    "gate3_root": "analysis/reverse_chain_pull_20260219_1239/case_level/gate3_seed42_tree",
+    "dice_root": "analysis/reverse_chain_pull_20260219_1239/case_level/dice_reference_tree",
+    "audits_root": "analysis/reverse_chain_pull_20260219_1239/audits",
+    "n_boot": 2000,
+    "n_perm": 2000,
+    "seed": 20260219
+  },
+  "files": {
+    "detection": "analysis/reverse_chain_pull_20260219_1239/case_level/inference/detection_case_level_bootstrap.csv",
+    "detection_deltas": "analysis/reverse_chain_pull_20260219_1239/case_level/inference/detection_direction_deltas_bootstrap_permutation.csv",
+    "clinical": "analysis/reverse_chain_pull_20260219_1239/case_level/inference/clinical_case_level_bootstrap_permutation.csv",
+    "clinical_deltas": "analysis/reverse_chain_pull_20260219_1239/case_level/inference/clinical_direction_deltas_bootstrap_permutation.csv"
+  },
+  "gate4": {
+    "forward_gate4_pass": false,
+    "reverse_gate4_pass": false,
+    "forward_predicted_mask_degradation_pct": 28.14060711692084,
+    "reverse_predicted_mask_degradation_pct": 49.397480642684414,
+    "forward_mask_free_degradation_pct": 25.534494393796496,
+    "reverse_mask_free_degradation_pct": 2.03038243024303
+  }
+}

@@ -10,6 +10,25 @@ Official implementation of **"Attribution Fingerprinting for Dataset Shift Detec
 
 ---
 
+## Current Manuscript Scope (2026-02-28)
+
+The active journal-facing manuscript has been respecified for **BMC Medical Imaging** with a narrower, publication-safe claim scope:
+
+- **Primary contribution**: Phase 1 Extended (validated, 20-seed, claim-carrying)
+- **Secondary branch**: Shenzhen hardshift extension (`P1.5 -> P2`) retained as an honest negative result
+- **Hardshift outcome**: v0.2 branch closed with `0/2` surviving candidates (`gamma085` fail, `jpeg90` fail)
+- **Publication package**: `submission_bmc_medical_imaging/`
+- **Overleaf-ready archive**: `submission_bmc_medical_imaging_overleaf_2026-02-28.zip`
+
+Reviewer-traceable closure documents:
+
+- `governance/HARDSHIFT_PROJECT_FINAL_STATUS_2026-02-28.md`
+- `governance/HARDSHIFT_V0_2_FINAL_OUTCOME_2026-02-28.md`
+- `reports_v2/audits/HARDSHIFT_PROJECT_FINAL_VERIFICATION_2026-02-28.md`
+- `reports_v2/manifests/hardshift_project_final_freeze_2026-02-28.sha256`
+
+---
+
 ## Current Status (2026-02-17)
 
 Gate-based validation for publication readiness is completed:
@@ -67,7 +86,7 @@ Primary reproducibility artifacts:
 ```bash
 # Clone the repository
 git clone https://github.com/Mo7aisen/xai-shift-fingerprints.git
-cd xai
+cd xai-shift-fingerprints
 
 # Create conda environment
 conda env create -f environment.yml
@@ -105,7 +124,7 @@ All experiments use fixed random seeds for reproducibility:
 
 **Metrics Traceability**: Gate reports, run registry, and reproducibility manifests are stored under `reports_v2/`.
 
-**Code Availability Statement**: This code is available under MIT license. All experiments can be reproduced using the scripts and configurations provided. The repository URL and archived release DOI will be provided upon acceptance.
+**Code Availability Statement**: This code is available under the MIT license at `https://github.com/Mo7aisen/xai-shift-fingerprints`. All experiments can be reproduced using the scripts and configurations provided. A DOI-backed archival snapshot can be minted upon acceptance.
 
 ---
 

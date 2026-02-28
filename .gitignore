@@ -119,6 +119,10 @@ archive/
 *.tar.gz
 *.tar
 
+# Local compiled outputs for the BMC submission package
+submission_bmc_medical_imaging/main.pdf
+submission_bmc_medical_imaging/cover_letter.pdf
+
 # Experiment outputs
 outputs/
 wandb/

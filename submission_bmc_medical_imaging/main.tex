@@ -1,0 +1,249 @@
+\documentclass[pdflatex,sn-vancouver-num]{sn-jnl}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{multirow}
+
+\raggedbottom
+
+\begin{document}
+
+\title[Validation-Locked Attribution Fingerprints for CXR Shift Monitoring]{Validation-Locked Attribution Fingerprints for Robust Domain-Shift Monitoring in Chest X-ray Segmentation}
+
+\author*[1]{\fnm{Mohammed} \sur{Mohaisen}}\email{mohammed.mohaisen@edu.bme.hu}
+\author[1]{\fnm{G\'abor} \sur{Hull\'am}}\email{gabor.hullam@mit.bme.hu}
+
+\affil*[1]{\orgdiv{Department of Artificial Intelligence and Systems Engineering}, \orgname{Budapest University of Technology and Economics}, \orgaddress{\city{Budapest}, \country{Hungary}}}
+
+\abstract{We present a validation-locked attribution-fingerprinting framework for detecting and characterizing clinically relevant domain shift in chest X-ray segmentation. The primary evidence is a 20-seed Phase 1 Extended bidirectional evaluation on JSRT and Shenzhen, where endpoint-specific behavior is materially different. The mask-free endpoint achieves the strongest reverse-direction operating profile (AUROC 0.9905, 95\% CI 0.9849 to 0.9953; FPR95 0.0389; perturbation degradation 2.03\%; Gate-5 clinical PASS), whereas the predicted-mask endpoint attains high discrimination (AUROC up to 0.9944) but remains too fragile under robustness stress testing. We further ran a predeclared hardshift extension in the Shenzhen setting under frozen governance. Both promoted candidates failed Gate-3 validation because post-hoc power remained below the required threshold, so this branch is reported as an honest negative result rather than a positive deployment claim. Overall, the data support constrained deployment of the mask-free endpoint, show the value of 20-seed validation-locked auditing for reviewer-traceable model assessment, and define a current boundary of the method in the harder hardshift setting.}
+
+\keywords{chest X-ray, domain shift, out-of-distribution detection, explainable AI, robustness, auditability}
+
+\maketitle
+
+\section{Introduction}\label{sec:intro}
+Domain shift remains a central obstacle in medical imaging, where models trained on one population, scanner, or annotation regime can fail when deployed on another. Surveys on medical-image domain adaptation and generalization continue to treat this as a core translational barrier \cite{Guan_2022,Khandelwal_2020,Korevaar_2023}. In chest X-ray pipelines, these failures are especially important because performance degradation can occur without obvious visual warning and can directly affect downstream quality assurance or clinical trust. Prior work in out-of-distribution detection, predictive uncertainty, and clinical explainability has shown that separability alone is not sufficient for deployment \cite{Yang_2024,Linmans_2023,Jin_2023}. Operational use also requires robustness and clinically meaningful linkage between shift signals and error risk.
+
+This study focuses on attribution fingerprints: dataset-level summaries of explanation statistics that characterize how model behavior shifts across cohorts. The central contribution is a validation-locked evaluation framework that separates discrimination, robustness, and clinical relevance into explicit acceptance gates. Rather than using a single pooled metric, we examine endpoint-specific behavior and retain reviewer-traceable audit artifacts throughout the workflow.
+
+The primary evidence in this manuscript is a 20-seed Phase 1 Extended bidirectional evaluation on JSRT and Shenzhen. In addition, we report an attempted hardshift extension in the Shenzhen setting. That extension was executed under predeclared governance and failed the relevant validation gate; it is therefore retained as a negative result and a limitation, not as a positive claim. This framing preserves methodological honesty while clarifying the supported scope of the method.
+
+Our contributions are threefold: (1) a validation-locked attribution-fingerprinting framework for domain-shift monitoring in chest X-ray segmentation, (2) a 20-seed primary evaluation protocol that separates discrimination from robustness and clinical linkage, and (3) an auditable negative-result extension that defines the present boundary of the method under a harder hardshift scenario.
+
+\section{Methods}\label{sec:methods}
+\subsection{Datasets and experimental setting}
+We perform bidirectional evaluation on two public chest X-ray datasets: JSRT ($n=247$) and Shenzhen ($n=566$). Two deployment-relevant directions are assessed: forward (JSRT$\rightarrow$Shenzhen) and reverse (Shenzhen$\rightarrow$JSRT). For each direction, the training-domain dataset is treated as in-distribution and the target dataset as out-of-distribution for shift detection analysis.
+
+\subsection{Segmentation model and training}
+We use a lightweight UNet with four encoder stages (feature widths 32, 64, 128, 256) and a symmetric decoder with skip connections. Each stage contains two $3\times3$ convolutions with batch normalization and ReLU activations. Inputs are single-channel $512\times512$ images normalized to $[-1,1]$, and the output is a single-channel lung mask. Models are trained for 50 epochs with batch size 8 using Adam ($10^{-3}$) and a fixed seed (42); checkpoints are selected by best validation loss. When dataset-provided splits are unavailable, we use an 80/20 train/validation split.
+
+\subsection{Endpoint definitions and validation gates}
+Each direction is evaluated with two endpoint modes:
+\begin{itemize}
+\item \textbf{predicted-mask}: fingerprint features that use model-predicted mask structure;
+\item \textbf{mask-free}: fingerprint features that avoid dependency on predicted-mask structure.
+\end{itemize}
+
+We apply a gate-based validation protocol:
+\begin{itemize}
+\item \textbf{Gate 3 (discrimination):} AUROC, AUPR, FPR95, expected calibration error, and Brier score;
+\item \textbf{Gate 4 (robustness):} integrated-gradients stability, ablation retention, and perturbation degradation thresholds;
+\item \textbf{Gate 5 (clinical linkage):} correlation between shift score and Dice-drop risk, plus determinism checks.
+\end{itemize}
+
+This structure prevents a high-discrimination endpoint from being considered deployment-ready unless it also meets robustness and clinically relevant acceptance criteria.
+
+\subsection{Attribution fingerprints}
+Let $A \in \mathbb{R}^{H\times W}$ denote an attribution map and $M \in \{0,1\}^{H\times W}$ denote a reference mask. We use absolute attributions $\lvert A \rvert$ for all fingerprint summaries.
+
+\textbf{Mass attribution}
+\[
+\mathrm{Mass}(A)=\sum_{i=1}^{H}\sum_{j=1}^{W}\lvert A_{ij}\rvert .
+\]
+
+\textbf{Border mass}
+\[
+\mathrm{BorderMass}(A,M)=\sum_{(i,j)\in \partial M}\lvert A_{ij}\rvert ,
+\]
+where $\partial M$ is the dilated mask border.
+
+\textbf{Coverage AUC}
+\[
+\mathrm{CoverageAUC}(A,M)=\int_0^1 C(u)\,du ,
+\]
+where $C(u)$ is the cumulative attribution curve over pixel-fraction coverage.
+
+\textbf{Attribution entropy}
+\[
+H(A)=-\sum_{k=1}^{32}p_k\log p_k ,
+\]
+where $\{p_k\}_{k=1}^{32}$ is the histogram of normalized absolute attribution magnitudes.
+
+Integrated Gradients uses 16 steps with Gauss-Legendre integration, baseline $-1.0$, and internal batch size 4. We compute divergence between datasets using KL divergence, Earth Mover's Distance, and graph-edit distance. Bootstrap resampling provides confidence intervals for the derived statistics.
+
+\subsection{Statistical testing and compute}
+Case-level uncertainty is estimated via nonparametric bootstrap ($n=2000$) with 95\% confidence intervals. Directional differences are tested with two-sided permutation tests ($n=2000$). The primary manuscript evidence is derived from the Phase 1 Extended 20-seed validation track. Inference claims are centered on rank and discrimination metrics (AUROC and FPR95 deltas), while AUPR, calibration, and Brier differences are interpreted primarily through confidence intervals because score normalization differs by direction.
+
+All experiments run with CUDA 12.1+ on a single GPU. The end-to-end pipeline for the primary bidirectional evaluation completes in approximately four hours on a single modern GPU, excluding dataset download and preprocessing. Configuration files in the repository define experiment paths, seeds, and audit checkpoints.
+
+\section{Results}\label{sec:results}
+\subsection{Phase 1 Extended: bidirectional validation summary}
+Case-level inference ($n=2000$ bootstrap and $n=2000$ permutation resamples) showed that reverse evaluation (Shenzhen$\rightarrow$JSRT) improved discrimination for both endpoints. For mask-free, AUROC increased from 0.8833 to 0.9905 and FPR95 decreased from 0.4615 to 0.0389. For predicted-mask, AUROC increased from 0.9253 to 0.9944, but robustness degradation worsened under perturbation stress. Table~\ref{tab:bidirectional_results_box} summarizes the reviewer-facing operating results used for deployment interpretation.
+
+\begin{table}[t]
+\caption{Bidirectional validation summary (forward: JSRT$\rightarrow$Shenzhen; reverse: Shenzhen$\rightarrow$JSRT).}
+\label{tab:bidirectional_results_box}
+\begin{tabular}{lcccc}
+\toprule
+Metric & Forward & Reverse & Delta [95\% CI] & $p$ value \\
+\midrule
+Mask-free AUROC & 0.8833 & 0.9905 & +0.1072 [+0.0838, +0.1324] & 0.0005 \\
+Mask-free FPR95 & 0.4615 & 0.0389 & -0.4227 [-0.4897, -0.3334] & 0.0005 \\
+Predicted-mask degradation (\%) & 28.14 & 49.40 & --- & --- \\
+Mask-free degradation (\%) & 25.53 & 2.03 & --- & --- \\
+Gate-5 overall & FAIL & PASS & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Endpoint-dependent operating behavior}
+The direction effect is endpoint-specific. Reverse direction improves discrimination for both endpoints, but robustness behavior diverges: mask-free improves substantially under reverse perturbation testing, while predicted-mask becomes more fragile. This confirms that endpoint choice materially changes deployment suitability even when aggregate discrimination appears high.
+
+\subsection{Attempted hardshift extension (negative result)}
+We executed a governance-locked hardshift extension in the Shenzhen setting after the primary analysis. Two promoted candidates (\texttt{gamma085} and \texttt{jpeg90}) were evaluated sequentially under unchanged Gate-3 criteria. Both failed because post-hoc power remained below the required threshold of 0.80 for both endpoints, and no candidate was advanced to the next validation stage.
+
+\begin{table}[t]
+\caption{Reviewer-traceable summary of the attempted hardshift extension. Both candidates failed Gate 3 and are retained as negative-result evidence only.}
+\label{tab:hardshift_extension}
+\begin{tabular}{lccc}
+\toprule
+Candidate & Power (predicted-mask) & Power (mask-free) & Decision \\
+\midrule
+\texttt{gamma085} & 0.2274 & 0.2663 & Fail \\
+\texttt{jpeg90} & 0.0400 & 0.0796 & Fail \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The hardshift branch therefore closed with 0/2 surviving candidates. Because this branch was governed by frozen thresholds and an auditable decision trail, we report it as an honest negative extension rather than a post hoc near-miss.
+
+\subsection{Clinical interpretation}
+Clinical linkage was direction-dependent. Gate 5 overall status was FAIL in forward direction and PASS in reverse direction, with endpoint-level differences favoring mask-free under reverse evaluation. This supports using clinical linkage as a separate validation gate rather than assuming that strong discrimination alone implies operational readiness.
+
+\section{Discussion}\label{sec:discussion}
+The primary bidirectional results show that discrimination, robustness, and clinical linkage should be treated as distinct axes. Reverse evaluation improves discrimination for both endpoints, but only the mask-free endpoint preserves robustness and clinical-pass behavior simultaneously. Predicted-mask illustrates the opposite regime: very high AUROC can still coincide with unacceptable perturbation fragility.
+
+This trade-off has direct deployment implications. A pooled claim based on AUROC alone would overstate readiness, whereas endpoint-specific reporting identifies a constrained but actionable path: mask-free as the preferred endpoint, predicted-mask as investigational until robustness hardening is validated. In this sense, the validation-locked gate structure is not cosmetic; it is the mechanism that prevents overclaiming.
+
+The hardshift extension adds a second, equally important conclusion. The method can be reproducibly weak in a harder setting. Both promoted hardshift candidates showed stable seed-level rankings yet poor discriminative power, which indicates a genuine method boundary rather than a noisy or inconclusive result. This negative branch strengthens the paper's scientific honesty by showing where the current method stops working.
+
+\section{Attempted extension and limitations}\label{sec:limitations}
+First, endpoint behavior is heterogeneous: predicted-mask is highly discriminative in the primary study yet too perturbation-fragile for deployment, so conclusions cannot be transferred across endpoints without explicit robustness checks. Second, fingerprinting operates on derived explanation maps rather than raw images, and interpretation therefore depends on attribution quality.
+
+Third, the attempted hardshift extension did not survive predeclared validation. The primary candidate (\texttt{gamma085}) and the backup candidate (\texttt{jpeg90}) both failed Gate 3 because power stayed far below the required threshold. This means the current manuscript does not claim successful hardshift transfer in the Shenzhen setting. Instead, it documents a reviewer-traceable negative result that defines a current limitation of the method.
+
+Fourth, the present study is limited to Integrated Gradients and Grad-CAM as the explanation sources. Expanding to additional explainability methods may alter fingerprint behavior. Fifth, robustness testing currently uses 200 samples per dataset in the perturbation suite; larger perturbation studies could refine uncertainty estimates. Finally, broader multi-site validation remains necessary before making wider deployment claims beyond the cohorts studied here.
+
+\section{Conclusions}\label{sec:conclusion}
+Validation-locked attribution fingerprints provide an interpretable and auditable mechanism for monitoring domain shift in chest X-ray segmentation. In the primary Phase 1 Extended bidirectional evaluation, the mask-free endpoint offers the most favorable balance of discrimination, robustness, and clinical linkage. The attempted hardshift extension did not pass predeclared validation and is therefore retained as an honest negative result rather than a positive deployment claim. Taken together, these findings support a narrow, defensible claim: attribution fingerprints are useful for deployment-focused shift monitoring when endpoint-specific gate criteria are enforced, but the current method does not yet support a successful hardshift claim in the Shenzhen setting.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.98\linewidth]{figures/fig_framework_overview_bidirectional.pdf}
+\caption{Validation-locked attribution-fingerprinting workflow for bidirectional evaluation. Two endpoint branches (predicted-mask and mask-free) feed shift scoring and gate-based validation (Gate 3 discrimination, Gate 4 robustness, Gate 5 clinical linkage), followed by endpoint-specific deployment interpretation.}
+\label{fig:framework_overview}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_baseline_comparison.pdf}
+\caption{Baseline comparison across datasets using attribution-fingerprint metrics.}
+\label{fig:baseline_comparison}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_pca_variance.pdf}
+\caption{Principal-component variance explained by the fingerprint feature space.}
+\label{fig:pca_variance}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_attribution_dice_scatter.pdf}
+\caption{Relationship between attribution mass and Dice score across cohorts.}
+\label{fig:attr_dice_scatter}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_feature_importance.pdf}
+\caption{Feature-importance ranking for the attribution-fingerprint metrics.}
+\label{fig:feature_importance}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_error_by_attribution.pdf}
+\caption{Error-rate stratification by attribution-mass quartiles.}
+\label{fig:error_by_attr}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_distribution_comparison.pdf}
+\caption{Distribution comparison of fingerprint features across datasets.}
+\label{fig:distribution_comparison}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_dimensionality_reduction.pdf}
+\caption{Dimensionality-reduction summary for the attribution-fingerprint feature space.}
+\label{fig:dimensionality_reduction}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/robustness_percent_change.pdf}
+\caption{Percent change in effect sizes under perturbation stress.}
+\label{fig:robustness_percent_change}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/robustness_correlation_stability.pdf}
+\caption{Correlation stability under perturbation stress.}
+\label{fig:robustness_correlation_stability}
+\end{figure}
+
+\section*{Declarations}
+\subsection*{Ethics approval and consent to participate}
+Not applicable. All analyses were performed on publicly available de-identified datasets.
+
+\subsection*{Consent for publication}
+Not applicable.
+
+\subsection*{Availability of data and materials}
+JSRT and Shenzhen are publicly available from their official sources. The generated audit artifacts, governance summaries, and reviewer-traceable freeze manifests used in this study are included in the supplementary review package accompanying this manuscript.
+
+\subsection*{Code availability}
+All source code, configurations, analysis scripts, governance manifests, and reproducibility assets are available in the project repository: \url{https://github.com/Mo7aisen/xai-shift-fingerprints}. The active repository is already configured as the canonical project remote used for this manuscript package. A DOI-backed archive snapshot will be minted upon acceptance. The repository contains the exact validation-locked 20-seed primary pipeline used for the main study and the negative-result hardshift extension documented here.
+
+\subsection*{Competing interests}
+The authors declare that they have no competing interests.
+
+\subsection*{Funding}
+No external funding was received for this work.
+
+\subsection*{Authors' contributions}
+Mohammed Mohaisen: conceptualization, methodology, software, formal analysis, investigation, visualization, writing of the original draft. G\'abor Hull\'am: supervision, resources, methodology review, and critical revision of the manuscript. All authors read and approved the final manuscript.
+
+\subsection*{Acknowledgements}
+We thank the public dataset providers. On behalf of the XAI Shift Fingerprints project, we also acknowledge HUN-REN Cloud for the computational resources used to execute the reproducibility and validation workloads reported in this study.
+
+\bibliography{references}
+
+\end{document}

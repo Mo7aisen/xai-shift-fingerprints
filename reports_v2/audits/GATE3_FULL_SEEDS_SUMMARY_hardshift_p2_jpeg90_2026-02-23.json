@@ -1,0 +1,66 @@
+{
+  "generated_utc": "2026-02-28T20:37:48.691725+00:00",
+  "artifacts_root": "/storage/xai_cxr_safety/xai_shift_fingerprints_reproduction_20251225_full/reports_v2/gate3_seed_artifacts",
+  "experiment": "shenzhen_to_shenzhen_pp_jpeg90",
+  "id_dataset": "shenzhen",
+  "ood_dataset": "shenzhen_pp_jpeg90",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "endpoints": [
+    "predicted_mask",
+    "mask_free"
+  ],
+  "criteria": {
+    "auroc_seed_ci_width_lt": 0.06,
+    "jaccard_mean_gt": 0.75,
+    "power_mean_gt": 0.8
+  },
+  "endpoint_summary": {
+    "predicted_mask": {
+      "auroc_mean": 0.5043638951666272,
+      "auroc_std": 0.0,
+      "auroc_seed_ci_width": 0.0,
+      "auroc_bootstrap_ci_width_mean": 0.09397226835145897,
+      "aupr_mean": 0.5089483017129302,
+      "aupr_std": 0.0,
+      "aupr_bootstrap_ci_width_mean": 0.08365000645887122,
+      "fpr95_mean": 0.9717314487632509,
+      "ece_mean": 0.2873671326954472,
+      "brier_mean": 0.3441658259451051,
+      "power_mean": 0.039956671816311164,
+      "jaccard_mean": 1.0,
+      "jaccard_min": 1.0,
+      "jaccard_pairs": 10,
+      "pass_auroc_ci": true,
+      "pass_jaccard": true,
+      "pass_power": false,
+      "pass_endpoint": false
+    },
+    "mask_free": {
+      "auroc_mean": 0.5122676022924496,
+      "auroc_std": 0.0,
+      "auroc_seed_ci_width": 0.0,
+      "auroc_bootstrap_ci_width_mean": 0.09375213824620111,
+      "aupr_mean": 0.5177554440574977,
+      "aupr_std": 0.0,
+      "aupr_bootstrap_ci_width_mean": 0.08575359248455225,
+      "fpr95_mean": 0.9611307420494699,
+      "ece_mean": 0.31053744435764846,
+      "brier_mean": 0.3567072602305794,
+      "power_mean": 0.0796210918970583,
+      "jaccard_mean": 1.0,
+      "jaccard_min": 1.0,
+      "jaccard_pairs": 10,
+      "pass_auroc_ci": true,
+      "pass_jaccard": true,
+      "pass_power": false,
+      "pass_endpoint": false
+    }
+  },
+  "gate3_statistical_full_pass": false
+}
